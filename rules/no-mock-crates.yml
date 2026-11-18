@@ -1,0 +1,12 @@
+id: no-mock-crates
+language: rust
+severity: error
+message: "Use the real implementation. For HTTP, a real local server (`wiremock`, `httpmock` are fine)."
+rule:
+  any:
+    - kind: use_declaration
+      regex: '\b(mockall|mockers|faux|mry)\b'
+    - kind: attribute_item
+      regex: '\b(automock|mockall|mockers|faux|mry)\b'
+    - kind: macro_invocation
+      regex: '^mock!'

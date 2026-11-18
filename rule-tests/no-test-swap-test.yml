@@ -1,0 +1,9 @@
+id: no-test-swap
+valid:
+  - "#[cfg(test)] mod tests { fn t() { if cfg!(test) {} } }"
+  - "#[cfg(test)] mod tests {}"
+  - '#[cfg(feature = "x")] fn f() {}'
+invalid:
+  - "fn f() { if cfg!(test) { a() } else { b() } }"
+  - "fn f() { if cfg!(not(test)) {} }"
+  - "#[cfg(not(test))] fn real() {}"

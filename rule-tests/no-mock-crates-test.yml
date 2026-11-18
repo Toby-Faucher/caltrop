@@ -1,0 +1,15 @@
+id: no-mock-crates
+valid:
+  - "use wiremock::MockServer;"
+  - "use httpmock::MockServer;"
+  - "struct MockLike;"
+invalid:
+  - "use mockall::predicate::*;"
+  - "use mockall::automock;"
+  - "#[automock] trait T {}"
+  - "#[cfg_attr(test, mockall::automock)] trait T {}"
+  - "mock! { Foo {} }"
+  - "use faux;"
+  - "#[faux::create] struct S;"
+  - "use mockers::Scenario;"
+  - "use mry;"

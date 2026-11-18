@@ -1,0 +1,15 @@
+id: no-test-swap
+language: rust
+severity: error
+message: "Production code must behave the same under test. Pass the dependency in instead."
+ignores:
+  - "**/tests/**"
+rule:
+  all:
+    - any:
+        - kind: macro_invocation
+          regex: '^cfg!\((not\(test\)|test)\)$'
+        - kind: attribute_item
+          regex: '^#\[cfg\(not\(test\)\)\]$'
+    - not:
+        matches: in-test-mod
