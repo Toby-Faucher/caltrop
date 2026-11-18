@@ -1,0 +1,13 @@
+id: in-loop
+language: rust
+rule:
+  inside:
+    any:
+      - kind: loop_expression
+      - kind: while_expression
+      - kind: for_expression
+    stopBy:
+      any:
+        - kind: closure_expression
+        - kind: async_block
+        - kind: function_item

@@ -1,0 +1,9 @@
+id: no-deadline-poll
+language: rust
+severity: error
+message: "Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline."
+rule:
+  all:
+    - matches: sleep-call
+    - matches: in-test-mod
+    - matches: in-loop

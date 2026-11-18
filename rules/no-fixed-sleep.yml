@@ -1,0 +1,10 @@
+id: no-fixed-sleep
+language: rust
+severity: error
+message: "Await the operation or an event it emits. To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers, use `#[tokio::test(start_paused = true)]`. For distinct timestamps, inject the clock."
+rule:
+  all:
+    - matches: sleep-call
+    - matches: in-test-mod
+    - not:
+        matches: in-loop

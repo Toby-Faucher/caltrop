@@ -1,0 +1,8 @@
+id: sleep-call
+language: rust
+# shortcut: bare sleep() counts whatever it was imported from, switch to import tracking if a repo defines its own sleep
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: '^(std::thread::|thread::|tokio::time::|time::|async_std::task::|task::)?sleep(_until)?$'

@@ -1,0 +1,12 @@
+id: no-fixed-sleep
+valid:
+  - "fn t() { std::thread::sleep(d); }"
+  - "#[cfg(test)] mod tests { fn t() { loop { std::thread::sleep(d); } } }"
+  - "#[cfg(test)] mod tests { fn t() { while x { sleep(d); } } }"
+  - "#[cfg(test)] mod tests { fn t() { for i in 0..3 { std::thread::sleep(d); } } }"
+  - "#[cfg(test)] mod tests { fn t() { let sleep = 3; } }"
+invalid:
+  - "#[cfg(test)] mod tests { #[test] fn t() { std::thread::sleep(d); } }"
+  - "#[cfg(test)] mod tests { async fn t() { tokio::time::sleep(d).await; } }"
+  - "#[cfg(test)] mod tests { async fn t() { sleep(d).await; } }"
+  - "#[cfg(test)] mod tests { async fn t() { while x { tokio::spawn(async move { loop { x().await; } sleep(d).await }); } } }"
