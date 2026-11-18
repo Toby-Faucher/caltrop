@@ -116,8 +116,9 @@ Existing hits these should produce (partial acceptance reference, from the 2026-
 - lemonate `no-deadline-poll`: `tests/uci.rs:65` (a kill deadline; allowlisted).
 - `no-test-swap`, `no-mock-crates`, `no-test-retries`: none in either repo.
 
-Production sleeps (`vesper-server/src/lib.rs:322`, `uploads.rs:493`, `voice.rs:664`,
+Production sleeps (`vesper-server/src/lib.rs:322`, `voice.rs:664`,
 `vesper-loadtest`, lemonate `src/uci/handler.rs:225`) must **not** be reported.
+(`uploads.rs:493` was listed here first, but it sits in a `#[cfg(test)] mod` test helper, so it is a correct `no-fixed-sleep` hit.)
 
 ## The command
 
