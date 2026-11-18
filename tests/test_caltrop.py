@@ -41,7 +41,9 @@ class CaltropTest(Fixture):
         r = self.check()
         self.assertEqual(r.returncode, 1)
         self.assertIn("tests/a.rs:2: no-fixed-sleep:", r.stdout)
-        self.assertIn("caltrop baseline", r.stdout)
+        self.assertIn("run caltrop baseline to adopt caltrop in this repo", r.stdout)
+        self.write("caltrop.toml", "")
+        self.assertNotIn("adopt caltrop in this repo", self.check().stdout)
 
     def test_baseline_then_check_passes(self):
         self.write("tests/a b.rs", SLEEP + SLEEP.replace("t()", "u()"))
@@ -126,6 +128,24 @@ class CaltropTest(Fixture):
         r = self.check()
         self.assertEqual(r.returncode, 2)
         self.assertNotIn("Traceback", r.stderr)
+
+    def test_wrong_shape_toml(self):
+        for body in ['allow = 3\n', '[allow.no-fixed-sleep]\n"x" = "2"\n',
+                     '[allow]\nno-fixed-sleep = 1\n', '[allow.no-fixed-sleep]\n"x" = -1\n']:
+            self.write("caltrop.toml", body)
+            r = self.check()
+            self.assertEqual(r.returncode, 2, body)
+            self.assertNotIn("Traceback", r.stderr)
+
+    def test_malformed_ast_grep_output(self):
+        for out in ["not json", "{}"]:
+            fake = Path(tempfile.mkdtemp())
+            self.addCleanup(shutil.rmtree, fake)
+            (fake / "ast-grep").write_text(f"#!/bin/sh\necho '{out}'\n")
+            (fake / "ast-grep").chmod(0o755)
+            r = self.check(env={**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"})
+            self.assertEqual(r.returncode, 2, out)
+            self.assertNotIn("Traceback", r.stderr)
 
 
 if __name__ == "__main__":

@@ -30,10 +30,13 @@ def scan(repo):
     if p.returncode and not p.stdout.strip():
         die(f"ast-grep failed ({p.stderr.strip()}); {INSTALL}")
     hits = {}
-    for line in p.stdout.splitlines():
-        h = json.loads(line)
-        rule = h["ruleId"].removesuffix("-tests-dir")
-        hits[(rule, h["file"], h["range"]["start"]["line"] + 1)] = h["message"]
+    try:
+        for line in p.stdout.splitlines():
+            h = json.loads(line)
+            rule = h["ruleId"].removesuffix("-tests-dir")
+            hits[(rule, h["file"], h["range"]["start"]["line"] + 1)] = h["message"]
+    except (ValueError, KeyError, TypeError, AttributeError):
+        die("unexpected ast-grep output; check the ast-grep version. " + INSTALL)
     return hits
 
 
@@ -86,6 +89,11 @@ def check(repo):
         allow = tomllib.loads(toml.read_text()).get("allow", {}) if toml.is_file() else {}
     except tomllib.TOMLDecodeError as e:
         die(f"{toml}: {e}")
+    if not (isinstance(allow, dict) and all(
+            isinstance(files, dict) and all(
+                type(n) is int and n >= 0 for n in files.values())
+            for files in allow.values())):
+        die(f"{toml}: expected [allow.<rule>] tables of \"file\" = count (non-negative integers)")
     hits = {**scan(repo), **retry_hits(repo)}
     have = counts(hits)
     problems = []
