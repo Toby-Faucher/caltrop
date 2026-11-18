@@ -53,11 +53,11 @@ Rule ids are stable. They key the allowlist.
 |---|---|---|
 | `no-fixed-sleep` | A sleep call in test code, outside a loop. | Await the operation or an event it emits. To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers, use `#[tokio::test(start_paused = true)]`. For distinct timestamps, inject the clock. |
 | `no-deadline-poll` | A sleep call inside `loop`, `while` or `for` in test code. | Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline. |
-| `no-test-swap` | `cfg!(test)`, `cfg!(not(test))` and `#[cfg(not(test))]` outside test code. | Production code must behave the same under test. Pass the dependency in instead. |
+| `no-test-swap` | A `cfg!(..)` that mentions `test`, or a `#[cfg(..)]` containing `not(test)`, outside test code. | Production code must behave the same under test. Pass the dependency in instead. |
 | `no-mock-crates` | `use` of `mockall`, `mockers`, `faux` or `mry`; `#[automock]` and similar attributes; `mock!`. | Use the real implementation. For HTTP, a real local server (`wiremock`, `httpmock` are fine). |
 | `no-test-retries` | `retries` above 0 in any profile or override of `.config/nextest.toml`. | Make the test deterministic; a retry hides the flake. |
 
-"Test code" means a `.rs` file under a `tests/` directory, a file named `tests.rs` or `*_tests.rs`, or code inside a `mod` marked `#[cfg(test)]`. `no-test-swap` skips both. Sleep calls are `sleep`, `sleep_until`, and those names under `thread::`, `std::thread::`, `time::`, `tokio::time::`, `task::` and `async_std::task::`.
+"Test code" means a `.rs` file under a `tests/` directory, a file named `tests.rs` or `*_tests.rs`, or code inside a `mod` or `fn` whose attributes include `#[cfg(test)]`, `#[cfg(all(.., test, ..))]`, `#[test]` or `#[<path>::test]` (other attributes and comments may sit between them). `no-test-swap` skips both. Sleep calls are `sleep`, `sleep_until`, and those names under `thread::`, `std::thread::`, `time::`, `tokio::time::`, `task::` and `async_std::task::`.
 
 Name files that `#[cfg(test)] mod x;` pulls in `tests.rs` or `*_tests.rs` (for example `view_tests.rs`), so they are scanned.
 
@@ -65,14 +65,10 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ## Known limits
 
-- ast-grep sees macro bodies as token trees. Code inside `tokio::select!`, `assert!(..)` and similar is invisible.
+- Inside macro arguments (`tokio::select!`, `assert!(..)`), any `sleep(..)` or `<path>::sleep(..)` counts, whatever the path.
 - A bare `sleep()` counts whatever it was imported from.
-- `#[test]` functions outside `tests/` and `#[cfg(test)]` mods are not seen.
-- `#[cfg(test)]` must be the attribute directly above `mod`. A stacked `#[cfg(test)] #[allow(..)] mod` is missed.
-- Compound forms such as `cfg(all(not(test), unix))` are not matched.
-- `cfg!(test)` inside a `#[cfg(test)] fn` (not a mod) is reported as `no-test-swap`.
-- A test mod marked `#[cfg(all(test, ..))]`, or with a doc comment between `#[cfg(test)]` and `mod`, is not recognised.
-- Test files not named `tests.rs` or `*_tests.rs` and not under `tests/` are only scanned inside inline `#[cfg(test)]` mods.
+- `#[cfg(any(test, ..))]` does not mark test code, since that code also builds outside tests.
+- Test files not named `tests.rs` or `*_tests.rs` and not under `tests/` are only scanned inside inline test mods and test functions.
 
 ## Pinning in CI
 

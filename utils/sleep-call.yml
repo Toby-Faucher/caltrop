@@ -2,7 +2,15 @@ id: sleep-call
 language: rust
 # shortcut: bare sleep() counts whatever it was imported from, switch to import tracking if a repo defines its own sleep
 rule:
-  kind: call_expression
-  has:
-    field: function
-    regex: '^(std::thread::|thread::|tokio::time::|time::|async_std::task::|task::)?sleep(_until)?$'
+  any:
+    - kind: call_expression
+      has:
+        field: function
+        regex: '^(std::thread::|thread::|tokio::time::|time::|async_std::task::|task::)?sleep(_until)?$'
+    # Macro arguments (tokio::select!, assert!) are token trees, not parsed calls: match `sleep` followed by `(..)`.
+    - kind: identifier
+      regex: '^sleep(_until)?$'
+      inside:
+        kind: token_tree
+      precedes:
+        kind: token_tree

@@ -7,3 +7,5 @@ invalid:
   - "#[cfg(test)] mod tests { fn t() { while x { sleep(d); } } }"
   - "#[cfg(test)] mod tests { fn t() { loop { std::thread::sleep(d); } } }"
   - "#[cfg(test)] mod tests { fn t() { for i in 0..3 { thread::sleep(d); } } }"
+  - "#[test] fn t() { while x { std::thread::sleep(d); } }"
+  - "#[cfg(test)] mod tests { async fn t() { loop { tokio::select! { _ = sleep(d) => {} } } } }"

@@ -1,0 +1,21 @@
+id: in-test-code
+language: rust
+# Test code: a mod or fn whose attributes (stacked, with comments between) include
+# #[cfg(test)], #[cfg(all(.., test, ..))], #[test] or #[<path>::test(..)].
+rule:
+  inside:
+    stopBy: end
+    any:
+      - kind: mod_item
+      - kind: function_item
+    follows:
+      stopBy:
+        not:
+          any:
+            - kind: attribute_item
+            - kind: line_comment
+            - kind: block_comment
+      kind: attribute_item
+      any:
+        - regex: '^#\[cfg\((test|all\((.*,\s*)?test\s*(,.*)?\))\)\]$'
+        - regex: '^#\[(\w+::)*test(\(.*\))?\]$'

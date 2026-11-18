@@ -5,6 +5,6 @@ message: "Await the operation or an event it emits. To prove something did not h
 rule:
   all:
     - matches: sleep-call
-    - matches: in-test-mod
+    - matches: in-test-code
     - not:
         matches: in-loop

@@ -4,12 +4,14 @@ severity: error
 message: "Production code must behave the same under test. Pass the dependency in instead."
 ignores:
   - "**/tests/**"
+  - "**/tests.rs"
+  - "**/*_tests.rs"
 rule:
   all:
     - any:
         - kind: macro_invocation
-          regex: '^cfg!\((not\(test\)|test)\)$'
+          regex: '^cfg!\((.*[(,\s])?test([),\s].*)?\)$'
         - kind: attribute_item
-          regex: '^#\[cfg\(not\(test\)\)\]$'
+          regex: '^#\[cfg\(.*\bnot\(\s*test\s*\).*\)\]$'
     - not:
-        matches: in-test-mod
+        matches: in-test-code
