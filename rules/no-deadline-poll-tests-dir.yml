@@ -4,6 +4,8 @@ severity: error
 message: "Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline."
 files:
   - "**/tests/**"
+  - "**/tests.rs"
+  - "**/*_tests.rs"
 rule:
   all:
     - matches: sleep-call

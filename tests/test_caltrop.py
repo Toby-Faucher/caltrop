@@ -62,6 +62,8 @@ class CaltropTest(Fixture):
         r = self.check()
         self.assertEqual(r.returncode, 1)
         self.assertIn("tests/a.rs:2: no-fixed-sleep:", r.stdout)
+        self.assertEqual(r.stdout.splitlines()[-1], "fix these hits; do not raise counts in caltrop.toml")
+        self.assertNotIn("baseline", r.stdout)
 
     def test_under_allowance_fails(self):
         self.write("tests/a.rs", SLEEP)
@@ -69,6 +71,8 @@ class CaltropTest(Fixture):
         r = self.check()
         self.assertEqual(r.returncode, 1)
         self.assertIn("lower the allowance for no-fixed-sleep in tests/a.rs to 1", r.stdout)
+        self.assertEqual(r.stdout.splitlines()[-1], "edit caltrop.toml as shown")
+        self.assertNotIn("baseline", r.stdout)
 
     def test_stale_file_fails(self):
         self.write("tests/a.rs", "fn f() {}\n")
@@ -83,6 +87,42 @@ class CaltropTest(Fixture):
         r = self.check()
         self.assertEqual(r.returncode, 1)
         self.assertIn("no-such-rule", r.stdout)
+        self.assertEqual(r.stdout.splitlines()[-1], "edit caltrop.toml as shown")
+
+    def test_both_trailers(self):
+        self.write("tests/a.rs", SLEEP + SLEEP.replace("t()", "u()"))
+        self.write("caltrop.toml", '[allow.no-fixed-sleep]\n"tests/a.rs" = 1\n"tests/gone.rs" = 1\n')
+        self.assertEqual(self.check().stdout.splitlines()[-2:],
+                         ["fix these hits; do not raise counts in caltrop.toml", "edit caltrop.toml as shown"])
+
+    def test_tests_file_naming(self):
+        self.write("src/foo_tests.rs", SLEEP)
+        self.write("src/tests.rs", SLEEP)
+        r = self.check()
+        self.assertIn("src/foo_tests.rs:2: no-fixed-sleep:", r.stdout)
+        self.assertIn("src/tests.rs:2: no-fixed-sleep:", r.stdout)
+
+    def test_two_sleeps_one_line(self):
+        self.write("tests/a.rs", "fn t() {\n    sleep(a); sleep(b);\n}\n")
+        self.assertEqual(self.check().stdout.count("no-fixed-sleep:"), 2)
+
+    def test_nextest_retry_lines_follow_tables(self):
+        self.write(".config/nextest.toml",
+                   '[profile.default]\nretries = 1\n\n[profile.ci]\nretries = 2\n\n'
+                   '[[profile.default.overrides]]\nfilter = "x"\nretries = 0\n')
+        r = self.check()
+        self.assertEqual(r.stdout.count("no-test-retries:"), 2)
+        self.assertIn(".config/nextest.toml:2:", r.stdout)
+        self.assertIn(".config/nextest.toml:5:", r.stdout)
+
+    def test_version_warning(self):
+        fake = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, fake)
+        (fake / "ast-grep").write_text("#!/bin/sh\n[ \"$1\" = --version ] && echo 'ast-grep 0.1.0'\nexit 0\n")
+        (fake / "ast-grep").chmod(0o755)
+        r = self.check(env={**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("warning: expected ast-grep 0.44.1, found ast-grep 0.1.0", r.stderr)
 
     def test_tests_dir_and_mod_dedupe(self):
         self.write("tests/a.rs", "#[cfg(test)]\nmod m {\n    fn t() {\n        std::thread::sleep(d);\n    }\n}\n")

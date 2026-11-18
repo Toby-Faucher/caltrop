@@ -11,7 +11,8 @@ from pathlib import Path
 SGCONFIG = Path(__file__).resolve().parent / "sgconfig.yml"
 RULES = {"no-fixed-sleep", "no-deadline-poll", "no-test-swap", "no-mock-crates", "no-test-retries"}
 RETRY_MSG = "Make the test deterministic; a retry hides the flake."
-INSTALL = "install ast-grep 0.44.1: cargo install ast-grep --version 0.44.1 --locked"
+AST_GREP = "0.44.1"
+INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
 USAGE = "usage: caltrop {check|baseline} [REPO_DIR]\n       caltrop --help"
 
 
@@ -22,6 +23,10 @@ def die(msg):
 
 def scan(repo):
     try:
+        v = subprocess.run(["ast-grep", "--version"], capture_output=True, text=True).stdout
+        if v.split()[-1:] != [AST_GREP]:
+            print(f"caltrop: warning: expected ast-grep {AST_GREP}, found {v.strip() or 'unknown'}; counts may differ",
+                  file=sys.stderr)
         p = subprocess.run(["ast-grep", "scan", "-c", str(SGCONFIG), "--json=stream", "."],
                            cwd=repo, capture_output=True, text=True)
     except FileNotFoundError:
@@ -34,7 +39,7 @@ def scan(repo):
         for line in p.stdout.splitlines():
             h = json.loads(line)
             rule = h["ruleId"].removesuffix("-tests-dir")
-            hits[(rule, h["file"], h["range"]["start"]["line"] + 1)] = h["message"]
+            hits[(rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])] = h["message"]
     except (ValueError, KeyError, TypeError, AttributeError):
         die("unexpected ast-grep output; check the ast-grep version. " + INSTALL)
     return hits
@@ -49,23 +54,32 @@ def retry_hits(repo):
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
         die(f"{path}: {e}")
-    lines = [i + 1 for i, l in enumerate(text.splitlines()) if re.match(r"\s*retries\b", l)]
-    hits, n = {}, 0
-    for profile in data.get("profile", {}).values():
-        for item in [profile, *profile.get("overrides", [])]:
+    # Map each retries key to its table: (profile, override index or None) -> line.
+    lines, sec, seen = {}, None, {}
+    for i, l in enumerate(text.splitlines(), 1):
+        m = re.match(r"\s*\[(\[)?\s*profile\.([^.\]\s]+)(\.overrides)?\s*\]", l)
+        if m:
+            name = m[2].strip("\"'")
+            seen[name] = seen.get(name, -1) + (1 if m[3] else 0)
+            sec = (name, seen[name] if m[3] else None)
+        elif re.match(r"\s*\[", l):
+            sec = None
+        elif sec and re.match(r"\s*retries\b", l):
+            lines.setdefault(sec, i)
+    hits = {}
+    for name, profile in data.get("profile", {}).items():
+        for idx, item in [(None, profile), *enumerate(profile.get("overrides", []))]:
             if "retries" not in item:
                 continue
             r = item["retries"]
             count = r.get("count", 0) if isinstance(r, dict) else r
-            lineno = lines[n] if n < len(lines) else 1
-            n += 1
             if count > 0:
-                hits[("no-test-retries", ".config/nextest.toml", lineno)] = RETRY_MSG
+                hits[("no-test-retries", ".config/nextest.toml", lines.get((name, idx), 1), 0)] = RETRY_MSG
     return hits
 
 
 def counts(hits):
-    return Counter((rule, file) for rule, file, _ in hits)
+    return Counter((rule, file) for rule, file, *_ in hits)
 
 
 def baseline(repo):
@@ -100,9 +114,11 @@ def check(repo):
     for rule in allow:
         if rule not in RULES:
             problems.append(f"unknown rule in caltrop.toml: {rule}")
-    for (rule, file, line), msg in sorted(hits.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0])):
+    over = 0
+    for (rule, file, line, _), msg in sorted(hits.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][3], kv[0][0])):
         if have[(rule, file)] > allow.get(rule, {}).get(file, 0):
             problems.append(f"{file}:{line}: {rule}: {msg}")
+            over += 1
     for rule, files in allow.items():
         if rule not in RULES:
             continue
@@ -118,7 +134,10 @@ def check(repo):
         if not toml.is_file():
             print("run caltrop baseline to adopt caltrop in this repo")
         else:
-            print("fix the hits, or run caltrop baseline only to adopt caltrop in a new repo")
+            if over:
+                print("fix these hits; do not raise counts in caltrop.toml")
+            if over < len(problems):
+                print("edit caltrop.toml as shown")
         return 1
     print(f"caltrop: ok, {len(hits)} allowed hit(s)")
     return 0

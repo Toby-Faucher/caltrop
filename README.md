@@ -53,13 +53,15 @@ Rule ids are stable. They key the allowlist.
 |---|---|---|
 | `no-fixed-sleep` | A sleep call in test code, outside a loop. | Await the operation or an event it emits. To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers, use `#[tokio::test(start_paused = true)]`. For distinct timestamps, inject the clock. |
 | `no-deadline-poll` | A sleep call inside `loop`, `while` or `for` in test code. | Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline. |
-| `no-test-swap` | `cfg!(test)` and `#[cfg(not(test))]` outside test code. | Production code must behave the same under test. Pass the dependency in instead. |
+| `no-test-swap` | `cfg!(test)`, `cfg!(not(test))` and `#[cfg(not(test))]` outside test code. | Production code must behave the same under test. Pass the dependency in instead. |
 | `no-mock-crates` | `use` of `mockall`, `mockers`, `faux` or `mry`; `#[automock]` and similar attributes; `mock!`. | Use the real implementation. For HTTP, a real local server (`wiremock`, `httpmock` are fine). |
 | `no-test-retries` | `retries` above 0 in any profile or override of `.config/nextest.toml`. | Make the test deterministic; a retry hides the flake. |
 
-"Test code" means a `.rs` file under a `tests/` directory, or code inside a `mod` marked `#[cfg(test)]`. `no-test-swap` skips both. Sleep calls are `thread::sleep`, `time::sleep`, `std::thread::sleep`, `tokio::time::sleep`, and bare `sleep(..)`.
+"Test code" means a `.rs` file under a `tests/` directory, a file named `tests.rs` or `*_tests.rs`, or code inside a `mod` marked `#[cfg(test)]`. `no-test-swap` skips both. Sleep calls are `sleep`, `sleep_until`, and those names under `thread::`, `std::thread::`, `time::`, `tokio::time::`, `task::` and `async_std::task::`.
 
-A loop search stops at closures and `async` blocks. A sleep inside `tokio::spawn(async move { .. })` counts as `no-fixed-sleep`, even if that block sits in a loop.
+Name files that `#[cfg(test)] mod x;` pulls in `tests.rs` or `*_tests.rs` (for example `view_tests.rs`), so they are scanned.
+
+A loop search stops at closures, `async` blocks and function boundaries. A sleep inside `tokio::spawn(async move { .. })` counts as `no-fixed-sleep`, even if that block sits in a loop.
 
 ## Known limits
 
@@ -68,6 +70,9 @@ A loop search stops at closures and `async` blocks. A sleep inside `tokio::spawn
 - `#[test]` functions outside `tests/` and `#[cfg(test)]` mods are not seen.
 - `#[cfg(test)]` must be the attribute directly above `mod`. A stacked `#[cfg(test)] #[allow(..)] mod` is missed.
 - Compound forms such as `cfg(all(not(test), unix))` are not matched.
+- `cfg!(test)` inside a `#[cfg(test)] fn` (not a mod) is reported as `no-test-swap`.
+- A test mod marked `#[cfg(all(test, ..))]`, or with a doc comment between `#[cfg(test)]` and `mod`, is not recognised.
+- Test files not named `tests.rs` or `*_tests.rs` and not under `tests/` are only scanned inside inline `#[cfg(test)]` mods.
 
 ## Pinning in CI
 
@@ -78,11 +83,13 @@ env:
   CALTROP_REF: <commit sha>
 steps:
   - uses: actions/checkout@v4
+  # Clone outside the checkout so caltrop itself is not scanned.
   - run: |
-      git clone https://github.com/Toby-Faucher/caltrop
-      git -C caltrop checkout "$CALTROP_REF"
+      git clone https://github.com/Toby-Faucher/caltrop "$RUNNER_TEMP/caltrop"
+      git -C "$RUNNER_TEMP/caltrop" checkout "$CALTROP_REF"
       pipx install ast-grep-cli==0.44.1
-      caltrop/caltrop check
+      echo "$RUNNER_TEMP/caltrop" >> "$GITHUB_PATH"
+  - run: caltrop check
 ```
 
 ## Tests
