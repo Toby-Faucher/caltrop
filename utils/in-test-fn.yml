@@ -1,0 +1,16 @@
+id: in-test-fn
+language: rust
+# Inside a function marked #[test] or #[<path>::test(..)] (other attributes and comments may sit between).
+rule:
+  inside:
+    kind: function_item
+    stopBy: end
+    follows:
+      stopBy:
+        not:
+          any:
+            - kind: attribute_item
+            - kind: line_comment
+            - kind: block_comment
+      kind: attribute_item
+      regex: '^#\[(\w+::)*test(\(.*\))?\]$'

@@ -4,4 +4,8 @@ severity: error
 message: "Assert the value or which error. Use `assert_eq!(r, Ok(..))`, `assert!(matches!(r, Err(E::X)))` or check `r.unwrap_err()`."
 rule:
   kind: macro_invocation
-  regex: '(?s)^(debug_)?assert!\(\s*!?\s*[^&|]*?\.is_(ok|err)\(\)\s*(,.*)?\)$'
+  # `&x` is fine inside the call; `&&`, `||` and `^` mean a compound condition.
+  regex: '(?s)^(debug_)?assert!\(\s*!?\s*(?:[^&|^]|&[^&])*?\.is_(ok|err)\(\)\s*(,.*)?\)$'
+  not:
+    # Channel emptiness checks have no error worth naming.
+    regex: 'try_recv\(\)\s*\.is_(ok|err)'

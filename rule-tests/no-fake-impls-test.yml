@@ -1,11 +1,19 @@
 id: no-fake-impls
 valid:
+  - 'impl fmt::Debug for FakeA { }'
+  - 'impl std::fmt::Display for FakeB { }'
+  - 'impl std::error::Error for FakeErr { }'
+  - 'impl From<u8> for FakeF { }'
+  - 'impl Runner for Stubborn { }'
+  - 'impl Runner for Mockingbird { }'
   - "impl Drop for FakeClient { fn drop(&mut self) {} }"
   - "impl Debug for MockLike { }"
   - "impl Runner for RealRunner { }"
   - "impl FakeClient { fn new() -> Self { todo!() } }"
   - "struct Fake { calls: Vec<String> }"
 invalid:
+  - 'impl Runner for Fake_Runner { }'
+  - 'impl crate::Runner for FakeRunner { }'
   - "impl Runner for Fake { fn run(&self) {} }"
   - "impl Clock for FakeClock { }"
   - "impl Backend for MockBackend { }"

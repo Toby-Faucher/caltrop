@@ -10,13 +10,13 @@ rule:
   all:
     - any:
         - kind: macro_invocation
-          regex: '^cfg!\((.*[(,\s])?test([),\s].*)?\)$'
+          regex: '(?s)^cfg!\((.*[(,\s])?test([),\s].*)?\)$'
         - kind: attribute_item
-          regex: '^#\[cfg\(.*\bnot\(\s*test\s*\).*\)\]$'
-        # Test-only cargo features (test-push, test-support, mock-net, fake_clock) are the same swap.
+          regex: '(?s)^#\[cfg\(.*\bnot\(\s*test\s*\).*\)\]$'
+        # Test-only cargo features are the same swap: a feature name with a -/_ separated word test, mock, fake or stub.
         - kind: macro_invocation
-          regex: '^cfg!\(.*feature\s*=\s*"[^"]*\b(test|mock|fake|stub)'
+          regex: '(?s)^cfg!\(.*feature\s*=\s*"([^"]*[-_])?(test|tests|testing|mock|mocks|fake|fakes|stub|stubs)([-_][^"]*)?"'
         - kind: attribute_item
-          regex: '^#\[cfg\(.*feature\s*=\s*"[^"]*\b(test|mock|fake|stub)'
+          regex: '(?s)^#\[cfg\(.*feature\s*=\s*"([^"]*[-_])?(test|tests|testing|mock|mocks|fake|fakes|stub|stubs)([-_][^"]*)?"'
     - not:
         matches: in-test-code

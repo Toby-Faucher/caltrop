@@ -5,4 +5,4 @@ message: "A test must not return early when a prerequisite is missing. It report
 rule:
   all:
     - matches: silent-skip
-    - matches: in-test-code
+    - matches: in-test-fn

@@ -6,7 +6,7 @@ rule:
   kind: impl_item
   has:
     field: type
-    regex: '^(Mock|Fake|Stub|Spy|Dummy)'
+    regex: '^(Mock|Fake|Stub|Spy|Dummy)([A-Z_0-9<]|$)'
   all:
     - has:
         field: trait
@@ -14,4 +14,4 @@ rule:
     - not:
         has:
           field: trait
-          regex: '^(Drop|Debug|Clone|Default|Display|PartialEq|Eq|Hash|Send|Sync)$'
+          regex: '(^|::)((Drop|Debug|Display|Clone|Default|PartialEq|Eq|Hash|Send|Sync|Error)$|From<)'

@@ -1,5 +1,7 @@
 id: no-test-swap
 valid:
+  - '#[cfg(feature = "fakeroot")] fn f() {}'
+  - '#[cfg(feature = "stubborn")] fn f() {}'
   - '#[cfg(feature = "latest-api")] fn f() {}'
   - '#[cfg(feature = "contest")] fn f() {}'
   - '#[cfg(test)] mod tests { fn t() { if cfg!(feature = "test-push") {} } }'
@@ -10,6 +12,8 @@ valid:
   - "#[cfg(test)]\n#[allow(dead_code)]\nmod tests { fn t() { if cfg!(test) {} } }"
   - "#[cfg(all(test, unix))] mod tests { fn t() { if cfg!(test) {} } }"
 invalid:
+  - '#[cfg(feature = "net_mock")] fn f() {}'
+  - '#[cfg(any(\n  unix,\n  feature = "test-support"\n))] fn f() {}'
   - '#[cfg(feature = "testing")] fn f() {}'
   - 'fn f() { if cfg!(feature = "test-utils") {} }'
   - 'fn f() { let allow = cfg!(feature = "test-push"); }'

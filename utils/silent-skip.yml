@@ -1,34 +1,36 @@
 id: silent-skip
 language: rust
-# An early `return;` (or `return eprintln!(..)`) guarded by a check for a missing prerequisite.
+# An early return guarded by a failed or negated check for a prerequisite, or any `let .. else { return }`.
 utils:
-  bare-return:
+  early-return:
     kind: return_expression
-    regex: '(?s)^return(\s+e?println!.*)?$'
+    regex: '(?s)^return(\s+e?println!.*|\s+Ok\(\(\)\))?$'
     not:
       inside:
-        stopBy: end
-        any:
-          - kind: for_expression
-          - kind: while_expression
-          - kind: loop_expression
-          - kind: closure_expression
+        kind: closure_expression
+        stopBy:
+          kind: function_item
+  missing-check:
+    any:
+      - regex: '(?s)^let\s+(Err|None)\b'
+      - all:
+          - regex: '(?s)(^!|\.is_err\(\)|\.is_none\(\))'
+          - regex: '\b(exists|is_file|is_dir|env::var|var_os|\w*available|\w*present|ready|installed|skip|UdpSocket|TcpListener|which|find_\w+)\b'
 rule:
   any:
     - kind: if_expression
       all:
         - has:
             field: condition
-            regex: '(exists|is_file|is_dir|env::var|var_os|available|present|ready|installed|skip|UdpSocket|TcpListener|which)'
+            matches: missing-check
         - has:
             field: consequence
             has:
               stopBy: end
-              matches: bare-return
+              matches: early-return
     - kind: let_declaration
-      regex: '(exists|is_file|is_dir|env::var|var_os|available|present|ready|installed|skip|UdpSocket|TcpListener|which)'
       has:
         field: alternative
         has:
           stopBy: end
-          matches: bare-return
+          matches: early-return

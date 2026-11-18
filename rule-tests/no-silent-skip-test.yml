@@ -1,11 +1,20 @@
 id: no-silent-skip
 valid:
+  - '#[cfg(test)] mod tests { impl Host { fn take(&mut self, e: &E) { let E::Pad { x } = e else { return; }; } } }'
+  - 'fn helper() { if !path.exists() { return; } }'
+  - '#[test] fn t() { if is_installed("x") { run(); return; } }'
+  - '#[test] fn t() { if let Ok(v) = std::env::var("X") { run(v); return; } }'
+  - '#[test] fn t() { if !already.is_empty() { return; } }'
+  - '#[test] fn t() { xs.iter().for_each(|x| { if !x.exists() { return; } }); }'
   - "fn real() { if !path.exists() { return; } }"
   - "#[test] fn t() { if !path.exists() { panic!(\"missing {path:?}\"); } }"
   - "#[test] fn t() { for x in xs { if x.ready { return; } } }"
   - "#[cfg(test)] mod tests { fn helper(p: &Path) -> Option<u8> { if !p.exists() { return None; } Some(1) } }"
   - "#[test] fn t() { if n > 3 { return; } }"
 invalid:
+  - '#[test] fn t() { if let Err(e) = browser::find_chrome() { return eprintln!("skip: {e}"); } }'
+  - '#[test] fn t() { for m in models { if !m.path.exists() { return eprintln!("skip"); } } }'
+  - '#[test] fn t() -> Result<(), E> { if !path.exists() { eprintln!("skip"); return Ok(()); } Ok(()) }'
   - "#[test] fn t() { if !path.exists() { return; } }"
   - "#[test] fn t() { if !book_present() { eprintln!(\"skipping\"); return; } }"
   - "#[cfg(test)] mod tests { #[test] fn t() { if std::env::var(\"MODELS\").is_err() { return eprintln!(\"skip: no models\"); } } }"
