@@ -1,0 +1,7 @@
+id: no-ignored-test
+language: rust
+severity: error
+message: "An ignored test never runs in CI. Make it run (fixture, feature or a CI job), or delete it."
+rule:
+  kind: attribute_item
+  regex: '^#\[ignore\b'

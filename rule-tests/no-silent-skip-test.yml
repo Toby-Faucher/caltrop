@@ -1,0 +1,13 @@
+id: no-silent-skip
+valid:
+  - "fn real() { if !path.exists() { return; } }"
+  - "#[test] fn t() { if !path.exists() { panic!(\"missing {path:?}\"); } }"
+  - "#[test] fn t() { for x in xs { if x.ready { return; } } }"
+  - "#[cfg(test)] mod tests { fn helper(p: &Path) -> Option<u8> { if !p.exists() { return None; } Some(1) } }"
+  - "#[test] fn t() { if n > 3 { return; } }"
+invalid:
+  - "#[test] fn t() { if !path.exists() { return; } }"
+  - "#[test] fn t() { if !book_present() { eprintln!(\"skipping\"); return; } }"
+  - "#[cfg(test)] mod tests { #[test] fn t() { if std::env::var(\"MODELS\").is_err() { return eprintln!(\"skip: no models\"); } } }"
+  - "#[tokio::test] async fn t() { if !ready(&dir) { return; } }"
+  - "#[test] fn t() { let Ok(sock) = UdpSocket::bind(\"[::]:0\") else { return; }; }"

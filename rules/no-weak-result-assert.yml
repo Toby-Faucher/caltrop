@@ -1,0 +1,7 @@
+id: no-weak-result-assert
+language: rust
+severity: error
+message: "Assert the value or which error. Use `assert_eq!(r, Ok(..))`, `assert!(matches!(r, Err(E::X)))` or check `r.unwrap_err()`."
+rule:
+  kind: macro_invocation
+  regex: '(?s)^(debug_)?assert!\(\s*!?\s*[^&|]*?\.is_(ok|err)\(\)\s*(,.*)?\)$'

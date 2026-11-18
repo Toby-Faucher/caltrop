@@ -1,0 +1,15 @@
+id: no-weak-result-assert
+valid:
+  - "fn t() { assert_eq!(r, Ok(1)); }"
+  - "fn t() { assert!(matches!(r, Err(E::X))); }"
+  - "fn t() { assert!(a.is_ok() && b.is_ok()); }"
+  - "fn t() { assert!(x.is_some()); }"
+  - "fn t() { let ok = r.is_ok(); }"
+invalid:
+  - "fn t() { assert!(r.is_ok()); }"
+  - "fn t() { assert!(r.is_err()); }"
+  - "fn t() { assert!(load(a, b).is_err()); }"
+  - 'fn t() { assert!(r.is_ok(), "failed: {r:?}"); }'
+  - "fn t() { assert!(!r.is_ok()); }"
+  - "fn t() { debug_assert!(r.is_err()); }"
+  - "fn t() { assert!(\n  parse(\"x\")\n    .is_err()\n); }"

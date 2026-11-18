@@ -53,9 +53,13 @@ Rule ids are stable. They key the allowlist.
 |---|---|---|
 | `no-fixed-sleep` | A sleep call in test code, outside a loop. | Await the operation or an event it emits. To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers, use `#[tokio::test(start_paused = true)]`. For distinct timestamps, inject the clock. |
 | `no-deadline-poll` | A sleep call inside `loop`, `while` or `for` in test code. | Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline. |
-| `no-test-swap` | A `cfg!(..)` that mentions `test`, or a `#[cfg(..)]` containing `not(test)`, outside test code. | Production code must behave the same under test. Pass the dependency in instead. |
+| `no-test-swap` | Outside test code: a `cfg!(..)` that mentions `test`, a `#[cfg(..)]` containing `not(test)`, or a `cfg` on a test-only cargo feature (a feature name with a word starting `test`, `mock`, `fake` or `stub`, like `test-support`). | Production code must behave the same under test. Pass the dependency in instead. |
 | `no-mock-crates` | `use` of `mockall`, `mockers`, `faux` or `mry`; `#[automock]` and similar attributes; `mock!`. | Use the real implementation. For HTTP, a real local server (`wiremock`, `httpmock` are fine). |
 | `no-test-retries` | `retries` above 0 in any profile or override of `.config/nextest.toml`. | Make the test deterministic; a retry hides the flake. |
+| `no-ignored-test` | Any `#[ignore]` attribute. | An ignored test never runs in CI. Make it run (fixture, feature or a CI job), or delete it. |
+| `no-weak-result-assert` | `assert!` or `debug_assert!` on `.is_ok()` or `.is_err()` alone (negated too). | Assert the value or which error. Use `assert_eq!(r, Ok(..))`, `assert!(matches!(r, Err(E::X)))` or check `r.unwrap_err()`. |
+| `no-silent-skip` | In test code: an early `return;` (or `return eprintln!(..)`) under an `if` or `let .. else` that checks a prerequisite (`exists`, `is_file`, `env::var`, `ready`, `present`, `UdpSocket`, `TcpListener` and similar). | A test must not return early when a prerequisite is missing. It reports a pass. Provide the prerequisite in CI, and fail with a clear message if it is absent. |
+| `no-fake-impls` | `impl SomeTrait for` a type named `Mock*`, `Fake*`, `Stub*`, `Spy*` or `Dummy*` (except derive-style traits like `Drop`, `Debug`, `Clone`). | Use the real implementation. A hand-written fake that stands in for a trait is a mock. A real local server on a socket is fine. |
 
 "Test code" means a `.rs` file under a `tests/` directory, a file named `tests.rs` or `*_tests.rs`, or code inside a `mod` or `fn` whose attributes include `#[cfg(test)]`, `#[cfg(all(.., test, ..))]`, `#[test]` or `#[<path>::test]` (other attributes and comments may sit between them). `no-test-swap` skips both. Sleep calls are `sleep`, `sleep_until`, and those names under `thread::`, `std::thread::`, `time::`, `tokio::time::`, `task::` and `async_std::task::`.
 
@@ -65,6 +69,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ## Known limits
 
+- Directories named `vendor` are skipped: vendored third-party code is not the repo's to judge.
 - Inside macro arguments (`tokio::select!`, `assert!(..)`), any `sleep(..)` or `<path>::sleep(..)` counts, whatever the path.
 - A bare `sleep()` counts whatever it was imported from.
 - `#[cfg(any(test, ..))]` does not mark test code, since that code also builds outside tests.

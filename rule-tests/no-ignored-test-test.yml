@@ -1,0 +1,9 @@
+id: no-ignored-test
+valid:
+  - "#[test] fn t() {}"
+  - "#[cfg(test)] mod tests { #[test] fn t() { let ignore = 1; } }"
+  - "#[serde(ignore)] struct S;"
+invalid:
+  - "#[test] #[ignore] fn t() {}"
+  - '#[test] #[ignore = "needs the corpus"] fn t() {}'
+  - "#[cfg(test)] mod tests { #[tokio::test] #[ignore] async fn t() {} }"

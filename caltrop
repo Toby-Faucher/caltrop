@@ -9,7 +9,10 @@ from collections import Counter
 from pathlib import Path
 
 SGCONFIG = Path(__file__).resolve().parent / "sgconfig.yml"
-RULES = {"no-fixed-sleep", "no-deadline-poll", "no-test-swap", "no-mock-crates", "no-test-retries"}
+RULES = {
+    "no-fixed-sleep", "no-deadline-poll", "no-test-swap", "no-mock-crates", "no-test-retries",
+    "no-ignored-test", "no-weak-result-assert", "no-silent-skip", "no-fake-impls",
+}
 RETRY_MSG = "Make the test deterministic; a retry hides the flake."
 AST_GREP = "0.44.1"
 INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
@@ -27,7 +30,9 @@ def scan(repo):
         if v.split()[-1:] != [AST_GREP]:
             print(f"caltrop: warning: expected ast-grep {AST_GREP}, found {v.strip() or 'unknown'}; counts may differ",
                   file=sys.stderr)
-        p = subprocess.run(["ast-grep", "scan", "-c", str(SGCONFIG), "--json=stream", "."],
+        p = subprocess.run(["ast-grep", "scan", "-c", str(SGCONFIG), "--json=stream",
+                            # Vendored third-party code is not this repo's to judge.
+                            "--globs", "!**/vendor/**", "."],
                            cwd=repo, capture_output=True, text=True)
     except FileNotFoundError:
         die(f"ast-grep not found; {INSTALL}")

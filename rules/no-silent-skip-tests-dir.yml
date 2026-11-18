@@ -1,0 +1,10 @@
+id: no-silent-skip-tests-dir
+language: rust
+severity: error
+message: "A test must not return early when a prerequisite is missing. It reports a pass. Provide the prerequisite in CI, and fail with a clear message if it is absent."
+files:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "**/*_tests.rs"
+rule:
+  matches: silent-skip

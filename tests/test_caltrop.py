@@ -102,6 +102,28 @@ class CaltropTest(Fixture):
         self.assertIn("src/foo_tests.rs:2: no-fixed-sleep:", r.stdout)
         self.assertIn("src/tests.rs:2: no-fixed-sleep:", r.stdout)
 
+    def test_new_rules_report_and_baseline(self):
+        self.write("tests/a.rs", (
+            "#[test]\n#[ignore]\nfn t() {\n"
+            "    assert!(r.is_err());\n"
+            "    if !path.exists() { return; }\n"
+            "}\n"
+            "impl Runner for FakeRunner {}\n"
+        ))
+        r = self.check()
+        for line in ("tests/a.rs:2: no-ignored-test:", "tests/a.rs:4: no-weak-result-assert:",
+                     "tests/a.rs:5: no-silent-skip:", "tests/a.rs:7: no-fake-impls:"):
+            self.assertIn(line, r.stdout)
+        self.assertNotIn("no-silent-skip-tests-dir", r.stdout)
+        self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_vendor_dir_skipped(self):
+        self.write("desktop/vendor/gpui/tests/a.rs", SLEEP)
+        self.write("vendor/x/src/lib.rs", "#[cfg(not(test))] fn f() {}\n")
+        r = self.check()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
     def test_two_sleeps_one_line(self):
         self.write("tests/a.rs", "fn t() {\n    sleep(a); sleep(b);\n}\n")
         self.assertEqual(self.check().stdout.count("no-fixed-sleep:"), 2)

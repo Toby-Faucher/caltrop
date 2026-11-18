@@ -1,0 +1,17 @@
+id: no-fake-impls
+language: rust
+severity: error
+message: "Use the real implementation. A hand-written fake that stands in for a trait is a mock. A real local server on a socket is fine."
+rule:
+  kind: impl_item
+  has:
+    field: type
+    regex: '^(Mock|Fake|Stub|Spy|Dummy)'
+  all:
+    - has:
+        field: trait
+        regex: '.'
+    - not:
+        has:
+          field: trait
+          regex: '^(Drop|Debug|Clone|Default|Display|PartialEq|Eq|Hash|Send|Sync)$'

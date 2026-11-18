@@ -1,0 +1,34 @@
+id: silent-skip
+language: rust
+# An early `return;` (or `return eprintln!(..)`) guarded by a check for a missing prerequisite.
+utils:
+  bare-return:
+    kind: return_expression
+    regex: '(?s)^return(\s+e?println!.*)?$'
+    not:
+      inside:
+        stopBy: end
+        any:
+          - kind: for_expression
+          - kind: while_expression
+          - kind: loop_expression
+          - kind: closure_expression
+rule:
+  any:
+    - kind: if_expression
+      all:
+        - has:
+            field: condition
+            regex: '(exists|is_file|is_dir|env::var|var_os|available|present|ready|installed|skip|UdpSocket|TcpListener|which)'
+        - has:
+            field: consequence
+            has:
+              stopBy: end
+              matches: bare-return
+    - kind: let_declaration
+      regex: '(exists|is_file|is_dir|env::var|var_os|available|present|ready|installed|skip|UdpSocket|TcpListener|which)'
+      has:
+        field: alternative
+        has:
+          stopBy: end
+          matches: bare-return

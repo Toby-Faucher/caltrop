@@ -13,5 +13,10 @@ rule:
           regex: '^cfg!\((.*[(,\s])?test([),\s].*)?\)$'
         - kind: attribute_item
           regex: '^#\[cfg\(.*\bnot\(\s*test\s*\).*\)\]$'
+        # Test-only cargo features (test-push, test-support, mock-net, fake_clock) are the same swap.
+        - kind: macro_invocation
+          regex: '^cfg!\(.*feature\s*=\s*"[^"]*\b(test|mock|fake|stub)'
+        - kind: attribute_item
+          regex: '^#\[cfg\(.*feature\s*=\s*"[^"]*\b(test|mock|fake|stub)'
     - not:
         matches: in-test-code

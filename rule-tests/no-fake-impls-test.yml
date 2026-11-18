@@ -1,0 +1,13 @@
+id: no-fake-impls
+valid:
+  - "impl Drop for FakeClient { fn drop(&mut self) {} }"
+  - "impl Debug for MockLike { }"
+  - "impl Runner for RealRunner { }"
+  - "impl FakeClient { fn new() -> Self { todo!() } }"
+  - "struct Fake { calls: Vec<String> }"
+invalid:
+  - "impl Runner for Fake { fn run(&self) {} }"
+  - "impl Clock for FakeClock { }"
+  - "impl Backend for MockBackend { }"
+  - "impl<T> Power for StubPower<T> { }"
+  - "#[cfg(test)] mod tests { impl Store for SpyStore { } }"
