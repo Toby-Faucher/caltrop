@@ -33,7 +33,7 @@ ASSERT_CALL = re.compile(r"_*(assert|expect|fail|raises|warns|deprecated_call)",
 PYTEST_CONFIGS = {"pytest.ini": "pytest", "tox.ini": "pytest", "setup.cfg": "tool:pytest"}
 SKIP_DIRS = {"vendor", "node_modules", "site-packages"}
 # Bumped by each release pull request; see docs/versions.md.
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 AST_GREP = "0.44.1"
 INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
 USAGE = ("usage: caltrop check [--format text|github] [REPO_DIR]\n"
