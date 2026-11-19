@@ -1,0 +1,51 @@
+id: no-source-text-test-ts
+language: typescript
+severity: error
+message: "Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file passes whatever the code does at run time."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  # Code that runs the text it read: vm.runInNewContext(src), new vm.Script(src), new Function(src), eval(src).
+  runs-code:
+    any:
+      - kind: call_expression
+        has: { field: function, regex: '^(\w+\.)?(runInNewContext|runInContext|runInThisContext|compileFunction)$|^eval$' }
+      - kind: new_expression
+        has: { field: constructor, regex: '^((\w+\.)?(Script|SourceTextModule)|Function)$' }
+rule:
+  kind: call_expression
+  all:
+    - has: { field: function, regex: '(^|\.)(readFileSync|readFile)$' }
+    # A source extension closing a string, template or URL literal in the arguments.
+    - has: { field: arguments, regex: '\.(ts|tsx|js|jsx|mjs|cjs|mts|cts|svelte|vue|py|rs)[''"`]' }
+    # Fixture, golden and snapshot files are inputs or expected outputs, not the code under test.
+    - not: { has: { field: arguments, regex: '(?i)fixtures?\b|testdata|golden|snapshots?\b|expected' } }
+    # Output of a code generator or build (outDir, tmpDir, dist/): reading it checks the generator's result.
+    - not:
+        has:
+          field: arguments
+          regex: '\b(tmp|temp)\w*|\b(out|output|dist|build|dest|gen|generated)(_?dir|_?path|_?root|Dir|Path|Root)?\b|[a-z0-9](Out|Output|Tmp|Temp|Dist|Build|Dest|Gen|Generated)(Dir|Path|Root|[A-Z_]|\b)'
+  not:
+    any:
+      # A hash pin (createHash(..).update(readFileSync(..))) guards the bytes, it does not claim behaviour.
+      - inside: { stopBy: end, kind: call_expression, has: { field: function, regex: '\.update$' } }
+      - inside: { stopBy: end, matches: runs-code }
+      # const src = readFileSync(..); vm.runInNewContext(src, ..) in the same block.
+      - inside:
+          stopBy: end
+          kind: variable_declarator
+          has: { field: name, pattern: $SRC }
+          inside:
+            kind: lexical_declaration
+            inside:
+              any: [ { kind: statement_block }, { kind: program } ]
+              has:
+                stopBy: end
+                kind: identifier
+                pattern: $SRC
+                inside: { kind: arguments, inside: { matches: runs-code } }

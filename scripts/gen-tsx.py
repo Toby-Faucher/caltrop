@@ -13,6 +13,7 @@ EXTRA = {
     "no-fixed-sleep": ("invalid", "it('x', async () => { render(<App />); await sleep(100); });"),
     "no-mock-libs": ("invalid", "vi.mock('./api'); it('x', () => { render(<List items={[]} />); });"),
     "no-ignored-test": ("invalid", "it.skip('renders', () => { render(<App />); });"),
+    "no-source-text-test": ("invalid", "it('x', () => { render(<App />); expect(readFileSync('src/App.tsx', 'utf8')).toMatch(/aria/); });"),
     "no-test-swap": ("invalid", "export const App = () => process.env.NODE_ENV === 'test' ? <Fake /> : <Real />;"),
 }
 
