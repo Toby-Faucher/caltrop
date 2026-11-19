@@ -35,6 +35,27 @@ rule:
           has:
             field: function
             regex: '^(exec|compile|eval)$|\.(write_text|write_bytes)$|hashlib|(^|\.)(sha\d*\w*|md5|blake2\w*|\w*hash\w*|\w*digest)$'
+      # ast.parse(p.read_text()) reads structure, not text: an import-boundary or call-graph guard.
+      - inside:
+          stopBy: end
+          kind: call
+          has: { field: function, regex: '^(ast\.)?parse$|(^|\.)parse_module$' }
+      # src = p.read_text(); tree = ast.parse(src) in the same block.
+      - inside:
+          stopBy: end
+          kind: assignment
+          has: { field: left, kind: identifier, pattern: $SRC }
+          inside:
+            kind: expression_statement
+            inside:
+              any: [ { kind: block }, { kind: module } ]
+              has:
+                stopBy: end
+                kind: identifier
+                pattern: $SRC
+                inside:
+                  kind: argument_list
+                  inside: { kind: call, has: { field: function, regex: '^(ast\.)?parse$|(^|\.)parse_module$' } }
       # getsource(vendored.f) == getsource(original.f): a parity check between two copies.
       - inside:
           kind: comparison_operator
