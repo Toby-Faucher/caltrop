@@ -1,0 +1,100 @@
+id: no-mock-libs.assign-py
+language: python
+severity: error
+message: "This replaces a library or module attribute for every later test and is never undone. Pass the dependency in; if the library needs a shim to run under the test database, put it in one fixture that undoes it, or allowlist the shim."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  # A name this file binds with `import a.b` (a), `import a as X`, `from m import X` or `from m import a as X`.
+  imported-name:
+    inside:
+      kind: module
+      stopBy: end
+      has:
+        stopBy: end
+        any:
+          # `has: { field: name }` sees only the first name, so match children by kind.
+          - kind: import_statement
+            has:
+              any:
+                - kind: dotted_name
+                  has: { nthChild: 1, pattern: $X }
+                - kind: aliased_import
+                  has: { field: alias, pattern: $X }
+          - kind: import_from_statement
+            has:
+              # The first named child is the module (`from m`), not a bound name.
+              not: { nthChild: 1 }
+              any:
+                - kind: dotted_name
+                  has: { pattern: $X }
+                - kind: aliased_import
+                  has: { field: alias, pattern: $X }
+  # The enclosing function undoes what it sets: a yield fixture, a finally, a cleanup hook, or setUp/tearDown.
+  restoring-fn:
+    kind: function_definition
+    any:
+      - has: { field: name, regex: '^(tearDown|teardown_|setUp|setup_)' }
+      - has:
+          field: body
+          has:
+            stopBy: { kind: function_definition }
+            any:
+              - kind: yield
+              - kind: finally_clause
+              - kind: call
+                has: { field: function, regex: '(^|\.)(addCleanup|addfinalizer|enterContext)$' }
+rule:
+  kind: assignment
+  # In `all` the order is fixed, so $X is bound from the target before the import lookup.
+  all:
+    - has:
+        field: left
+        kind: attribute
+        has:
+          field: object
+          any:
+            - { kind: identifier, pattern: $X }
+            # `mod.Class.attr`: a capitalised middle name is a class. A lowercase one is mostly object state
+            # (`flask.g.user`, `mod.client.timeout`), not a module attribute.
+            - kind: attribute
+              all:
+                - has: { field: object, kind: identifier, pattern: $X }
+                - has: { field: attribute, regex: '^_*[A-Z]' }
+    - matches: imported-name
+    # A parameter or local with the same name (a fixture called `app`, `worker = Worker()`) shadows the import.
+    - not:
+        inside:
+          stopBy: end
+          kind: function_definition
+          any:
+            - has:
+                field: parameters
+                has: { stopBy: end, kind: identifier, pattern: $X }
+            - has:
+                field: body
+                has:
+                  stopBy: end
+                  any:
+                    - kind: assignment
+                      has: { field: left, kind: identifier, pattern: $X }
+                    - kind: for_statement
+                      has: { field: left, kind: identifier, pattern: $X }
+                    - kind: as_pattern_target
+                      has: { kind: identifier, pattern: $X }
+    - not:
+        inside: { stopBy: end, matches: restoring-fn }
+    # A test class with a teardown is trusted to restore what its tests set.
+    - not:
+        inside:
+          stopBy: end
+          kind: class_definition
+          has:
+            field: body
+            has:
+              kind: function_definition
+              has: { field: name, regex: '^(tearDown|teardown_)' }
