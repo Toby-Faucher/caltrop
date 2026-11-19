@@ -1,0 +1,19 @@
+id: no-fixed-sleep.wait-for-ts
+valid:
+  - "await waitFor(() => expect(x).toBe(1));"
+  - "await waitFor(() => { expect(spy).toHaveBeenCalled(); });"
+  - "await waitFor(async () => { await expect(p).resolves.toBe(1); });"
+  - "await waitFor(() => expect(screen.getByText('ok')).toBeVisible(), { timeout: 1000 });"
+  - "await page.getByRole('button').waitFor();"
+  - "await locator.waitFor({ state: 'visible' });"
+  - "await page.waitForTimeout(0);"
+  - "await page.waitForFunction(() => true);"
+invalid:
+  - "await waitFor(() => {});"
+  - "await waitFor(async () => {});"
+  - "await waitFor(() => undefined);"
+  - "await waitFor(() => null);"
+  - "await waitFor(() => true);"
+  - "await waitFor(() => {}, { timeout: 1000 });"
+  - "await vi.waitFor(() => {});"
+  - "await screen.waitFor(async () => { });"

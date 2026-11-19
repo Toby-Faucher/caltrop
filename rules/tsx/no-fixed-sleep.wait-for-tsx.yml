@@ -1,0 +1,22 @@
+# Generated from rules/ts/no-fixed-sleep.wait-for-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-fixed-sleep.wait-for-tsx
+language: tsx
+severity: error
+message: "Wait for the condition: put the assertion in the `waitFor` callback, or use `findBy*`."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  # A waitFor callback that cannot throw passes on the first try: it waits a tick and checks nothing.
+  kind: call_expression
+  all:
+    - has: { field: function, regex: '(^|\.)waitFor$' }
+    - has:
+        field: arguments
+        has:
+          nthChild: 1
+          regex: '^(async\s*)?\(\s*\)\s*=>\s*(\{\s*\}|undefined|null|true|false)$'
