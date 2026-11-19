@@ -1,0 +1,21 @@
+id: no-coverage-pragma-py
+valid:
+  # coverage.py already excludes these lines by default; the pragma changes nothing.
+  - "if TYPE_CHECKING:  # pragma: no cover\n    from x import Y"
+  - "if typing.TYPE_CHECKING:  # pragma: no cover\n    import x"
+  - "class P(Protocol):\n    def f(self) -> int: ...  # pragma: no cover"
+  - "class P(Protocol):\n    def f(  # pragma: no cover - Protocol stub\n        self,\n    ) -> int: ..."
+  - "class P(Protocol):\n    def f(self) -> int:  # pragma: no cover\n        \"\"\"Doc.\"\"\"\n        ..."
+  # Not a pragma.
+  - "x = 1  # no cover needed here"
+  - "# see the pragma docs"
+  - "s = '# pragma: no cover'"
+invalid:
+  - "def main():  # pragma: no cover\n    run()"
+  - "try:\n    import ujson\nexcept ImportError:  # pragma: no cover\n    ujson = None"
+  - "if x:  # pragma: no branch\n    y()"
+  - "x = f()  # PRAGMA: NO COVER"
+  - "x = f()  # pragma nocover"
+  - "if __name__ == '__main__':  # pragma: no cover\n    main()"
+  - "if TYPE_CHECKING:\n    import x\nelse:  # pragma: no cover\n    x = None"
+  - "class P(Protocol):\n    def f(self) -> int:  # pragma: no cover\n        raise NotImplementedError"

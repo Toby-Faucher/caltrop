@@ -1,0 +1,29 @@
+id: no-coverage-pragma-py
+language: python
+severity: error
+message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
+# Production code too: that is where coverage exclusions live. No files: glob.
+rule:
+  kind: comment
+  # coverage.py's own default exclude (no cover) and partial-branch (no branch) regexes, 7.17.3 config.py.
+  regex: '#\s*(pragma|PRAGMA)[:\s]?\s*(no|NO)\s*(cover|COVER|branch|BRANCH)'
+  # Skipped: lines coverage.py already excludes by default, where the pragma changes nothing.
+  not:
+    any:
+      # if TYPE_CHECKING:  # pragma: no cover
+      - inside:
+          kind: if_statement
+          regex: '^if\s+(typing\.)?TYPE_CHECKING\s*:'
+      # A stub whose body is only `...` (and a docstring): a Protocol or overload method.
+      - inside:
+          kind: function_definition
+          stopBy: end
+          has:
+            field: body
+            not:
+              has:
+                not:
+                  any:
+                    - kind: comment
+                    - kind: expression_statement
+                      regex: '(?s)^(\.\.\.|[rRuU]?("""|''''''|"|'').*)$'

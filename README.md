@@ -183,7 +183,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ### Python
 
-<details><summary>10 Python rules</summary>
+<details><summary>11 Python rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -197,16 +197,17 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 | `no-fake-impls` | In test code, a `class` named `Mock`, `Fake`, `Stub`, `Spy` or `Dummy` (leading `_` allowed, alone or followed by a capital, digit or `_`), with or without a base class. Exception, Error and Warning subclasses are skipped. | Use the real implementation. A hand-written fake class that stands in for a real type is a mock, with or without a base class. A real local server on a socket is fine. |
 | `no-weak-result-assert` | `pytest.raises(Exception)`, `pytest.raises(BaseException)` or `self.assertRaises(Exception)` with no `match=`, unless it is `with .. as e:` and a later statement reads `e.value` or `e.exception`. | Assert which error. Raise and catch the specific exception type (`pytest.raises(ValueError, match=..)`), not `Exception`, which passes on any bug. |
 | `no-constant-assert` | In test code: `assert True`, a nonzero number or a non-empty string; `assert x == x` on a name or attribute path; `assert len(x) >= 0`; `self.assertTrue(True)`; an assert whose condition ends in `or True`. `assert False`/`assert 0` and `assert f(x) == f(x)` (a determinism check) are skipped. | This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green. |
+| `no-coverage-pragma` | A comment that coverage.py reads as an exclusion (its default `# pragma: no cover` and `# pragma: no branch` regexes), in any file. Skipped where coverage.py already excludes the line, so the pragma changes nothing: `if TYPE_CHECKING:` and a stub whose body is only `...` (a `Protocol` method). | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 
 </details>
 
-"Test code" in Python means a file named `test_*.py`, `*_test.py` or `conftest.py`, or any file under a `tests/` or `test/` directory. `no-test-swap` checks only the other files; `no-mock-libs` checks every file.
+"Test code" in Python means a file named `test_*.py`, `*_test.py` or `conftest.py`, or any file under a `tests/` or `test/` directory. `no-test-swap` checks only the other files; `no-mock-libs` and `no-coverage-pragma` check every file.
 
 ### TypeScript, JavaScript and Svelte
 
 The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs`, `.mts` and `.cts` as TypeScript, `.tsx` and `.jsx` as tsx, and `.svelte` files as HTML, so the rules also run inside a component's `<script>` block. ast-grep treats tsx as its own language, so `rules/tsx/`, `utils/tsx/` and `rule-tests/tsx/` are generated copies of the `ts` ones: edit the `ts` file and run `scripts/gen-tsx.py`. A unit test fails if the copies are stale.
 
-<details><summary>11 TypeScript, JavaScript and Svelte rules</summary>
+<details><summary>12 TypeScript, JavaScript and Svelte rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -221,10 +222,11 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-fake-impls` | In test code, a class named `Mock`/`Fake`/`Stub`/`Spy`/`Dummy` (alone, or followed by a capital, digit or `_`) with `implements` or `extends`. | Use the real implementation. A hand-written fake class that stands in for an interface or base class is a mock. A real local server on a socket is fine. |
 | `no-weak-result-assert` | `.toThrow()`/`.toThrowError()` with no argument, including `.rejects.`, but not `.not.toThrow()`; `assert.throws(fn)`/`assert.rejects(p)` with one argument. | Assert which error: pass the class, a message regex or a matcher, e.g. `toThrow(NotFoundError)`, `rejects.toThrow(/timed out/)`. A bare `toThrow()` passes on any error, including a TypeError from a typo. |
 | `no-constant-assert` | In test code: `expect(<true/false/null/undefined/number>)` with `toBe`/`toEqual`/`toStrictEqual`/`toBeTruthy`/`toBeFalsy`/`toBeDefined`/`toBeNull`/`toBeUndefined` and a literal or no argument; `expect(x).toBe(x)` (`toEqual`, `toStrictEqual`) on a name or property path; `expect(x.length/.size).toBeGreaterThanOrEqual(0)`; `assert(true)`, `assert.ok(true)`. String subjects and `expect(f(x)).toBe(f(x))` (a determinism check) are skipped. | This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green. |
+| `no-coverage-pragma` | In any file, including a `.svelte` `<script>` (both langs) and JSX: `istanbul ignore next/if/else/file`, `c8`/`v8 ignore next/if/else/file/start`, `node:coverage ignore next`/`disable`, as `//` or `/* */`. A `start`/`stop` or `disable`/`enable` pair counts once. | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 
 </details>
 
-"Test code" here means a file matching `*.test.*` or `*.spec.*`, or anything under `__tests__/`, `tests/`, `test/` or `e2e/`. `no-test-swap` skips those plus `*.config.*`, `vitest.*` and `__mocks__/`. `no-mock-libs` checks every file.
+"Test code" here means a file matching `*.test.*` or `*.spec.*`, or anything under `__tests__/`, `tests/`, `test/` or `e2e/`. `no-test-swap` skips those plus `*.config.*`, `vitest.*` and `__mocks__/`. `no-mock-libs` and `no-coverage-pragma` check every file.
 
 ## Known limits
 
@@ -244,7 +246,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>14 Python limits</summary>
+<details><summary>16 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -260,14 +262,16 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-silent-skip` only sees a `return` whose nearest enclosing function is named `test*`, not one in a helper the test calls.
 - Wall-clock timing asserts (`assert time.monotonic() - start < 1.0`) are not detected.
 - `no-constant-assert` only sees literal and self-compare forms. `assert x is x`, `self.assertEqual(x, x)`, `assert isinstance(x, object)` and `assert x == x` where `x` is a subscript (`c[0] == c[0]`) are not detected.
+- `no-coverage-pragma` only reads comments. Exclusions in coverage config (`exclude_lines`/`exclude_also` in `.coveragerc`, `setup.cfg` or `pyproject.toml`, `omit`) are not read, and nor is a low `fail_under`.
+- `no-coverage-pragma` cannot judge the reason. A pragma on code a test cannot reach (an `if __name__ == "__main__":` block, an alembic migration, a Windows-only branch, an optional-import fallback) is reported like any other; allowlist it. A `Protocol` method with a `pass` or `raise NotImplementedError` body is reported too (only a `...` body is skipped).
 
 </details>
 
 ### TypeScript, JavaScript and Svelte
 
-<details><summary>12 TypeScript, JavaScript and Svelte limits</summary>
+<details><summary>13 TypeScript, JavaScript and Svelte limits</summary>
 
-- A `.svelte` `<script>` without `lang="ts"` is parsed as JavaScript, and only `no-test-swap` has a JavaScript copy (`no-test-swap-js.yml`). Test files are `.ts`/`.js`, so the test rules still apply to them.
+- A `.svelte` `<script>` without `lang="ts"` is parsed as JavaScript, and only `no-test-swap` and `no-coverage-pragma` have a JavaScript copy (`*-js.yml`). Test files are `.ts`/`.js`, so the test rules still apply to them.
 - Any file under a `test/`, `tests/` or `e2e/` directory counts as test code, so a production route such as `src/routes/test/+page.svelte` is skipped by `no-test-swap`.
 - JSX inside a `.js` file is parsed as TypeScript and its JSX parts are not checked.
 - In a Svelte template, `no-test-swap` reports one hit per run of text between tags, so two test checks there count once. Template text is matched by regex inside `{..}`, not parsed.
@@ -279,6 +283,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - Production code that is itself test tooling (a Vite plugin or test runner reading `VITEST`/`JEST_WORKER_ID`, a library's own WebSocket mock assigned to `globalThis.WebSocket`) is reported. Allowlist it.
 - `no-silent-skip` only checks prerequisite-style conditions, so `if (!el) return;` in a test is not caught.
 - `no-constant-assert` skips `expect(x[0]).toBe(x[0])`, `expect(x).toBeGreaterThan(-1)`, `assert.equal(x, x)` and `assert.strictEqual(1, 1)`; it only sees `expect` literal subjects, self-compares on a name or property path, and `assert(true)`/`assert.ok(true)`.
+- `no-coverage-pragma` only reads comments: `coverage.exclude` in a vitest config, jest `coveragePathIgnorePatterns`, c8/nyc `exclude` and low `thresholds` are not read. It cannot judge the reason either, so an ignore around entry-point wiring (`if (import.meta.main)`) is reported; allowlist it. A comment in a Svelte template (`<!-- istanbul ignore -->`) is not checked.
 
 </details>
 
