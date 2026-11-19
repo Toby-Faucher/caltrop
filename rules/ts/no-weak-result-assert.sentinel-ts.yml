@@ -1,0 +1,63 @@
+id: no-weak-result-assert.sentinel-ts
+language: typescript
+severity: error
+message: "Use `await expect(p).rejects.toThrow(X)`. A sentinel thrown in the try is caught by your own catch."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# `try { await f(); throw new Error('expected a throw') } catch (e) { expect(e).toBeInstanceOf(Error) }`: when f()
+# stops throwing, the catch gets the sentinel and its assertions still pass. Flagged when no assertion in the catch
+# looks at the error in a way the sentinel fails (`expect(e.code).toBe('x')`, `toBeInstanceOf(Forbidden)`).
+utils:
+  assertion:
+    kind: call_expression
+    has: { field: function, regex: '^(expect|assert|fail)(\.\w+)*$' }
+  sentinel:
+    any:
+      - kind: throw_statement
+      - kind: expression_statement
+        has:
+          kind: call_expression
+          has: { field: function, regex: '^(fail|assert\.fail|expect\.fail|expect\.unreachable)$' }
+  # An assertion on $E that the sentinel Error also passes.
+  weak-on-error:
+    any:
+      - regex: '(\.\s*(toBeTruthy|toBeDefined)\s*\(\s*\)|\.\s*not\s*\.\s*(toBeNull|toBeUndefined|toBeFalsy)\s*\(\s*\)|\.\s*toBeInstanceOf\s*\(\s*Error\s*\))$'
+      - regex: '^assert(\s*\.\s*(ok|exists|isOk))?\s*\(\s*[\w$.]+\s*\)$'
+      - regex: '^assert\s*\.\s*instanceOf\s*\(\s*[\w$.]+\s*,\s*Error\s*\)$'
+  # The outermost assertion call (`expect(e.code).toBe('x')`, not the inner `expect(e.code)`) that reads $E.
+  checks-error:
+    kind: call_expression
+    any:
+      - all:
+          - regex: '^expect\s*\('
+          - has: { field: function, kind: member_expression }
+      - has: { field: function, regex: '^assert(\.\w+)*$' }
+    has: { stopBy: end, pattern: $E }
+    not: { matches: weak-on-error }
+rule:
+  kind: try_statement
+  all:
+    - matches: ts-in-test-body
+    - has: { field: body, has: { matches: sentinel } }
+    - has:
+        field: handler
+        all:
+          - has: { stopBy: end, matches: assertion }
+          # A catch that rethrows (`if (e.message === SENTINEL) throw e`) or returns is a helper, not the check.
+          - not: { has: { stopBy: end, any: [ { kind: throw_statement }, { kind: return_statement } ] } }
+          - any:
+              - not: { has: { field: parameter, regex: '.' } }
+              - all:
+                  - has: { field: parameter, pattern: $E }
+                  - not: { has: { field: body, has: { stopBy: end, matches: checks-error } } }
+    # expect.assertions(n) / expect.hasAssertions() make the test fail when the catch is skipped.
+    - not:
+        inside:
+          stopBy: end
+          any: [ { kind: arrow_function }, { kind: function_expression } ]
+          has: { stopBy: end, kind: member_expression, regex: '^expect\.(assertions|hasAssertions)$' }

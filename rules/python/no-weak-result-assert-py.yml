@@ -1,7 +1,7 @@
 id: no-weak-result-assert-py
 language: python
 severity: error
-message: "Assert which error. Raise and catch the specific exception type (`pytest.raises(ValueError, match=..)`), not `Exception`, which passes on any bug."
+message: "Assert which error. Raise and catch the specific exception type (`pytest.raises(ValueError, match=..)`), not `Exception`, which passes on any bug. For `SystemExit` or `IntegrityError`, add `match=` or check `e.value` (the exit code, the constraint)."
 files:
   - "**/test_*.py"
   - "**/*_test.py"
@@ -18,7 +18,8 @@ rule:
         field: arguments
         has:
           nthChild: 1
-          regex: '^(builtins\.)?(Exception|BaseException)$'
+          # SystemExit also covers exit code 0 and argparse usage errors; IntegrityError any constraint.
+          regex: '^(builtins\.)?(Exception|BaseException|SystemExit)$|^([\w.]+\.)?(IntegrityError|DatabaseError)$'
     # A match= pattern still pins down the error.
     - not:
         has:

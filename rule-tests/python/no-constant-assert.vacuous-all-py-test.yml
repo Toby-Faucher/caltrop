@@ -1,0 +1,17 @@
+id: no-constant-assert.vacuous-all-py
+valid:
+  - "def test_a():\n    items = load()\n    assert all(i.ok for i in items)"
+  - "def test_a():\n    assert all([i.ok for i in items])"
+  - "def test_a():\n    assert any(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert not all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert all(flags)"
+  - "def test_a():\n    ok = all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert all(any(p.ok for p in q.params if p.k) for q in paths)"
+  - "def test_a():\n    assert all(x.ok for x in xs) and len(xs) == 2"
+invalid:
+  - "def test_a():\n    assert all(i.ok for i in items if i.kind == 'user')"
+  - "def test_a():\n    items = load()\n    assert len(items) == 3\n    assert all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert all([i.ok for i in items if i.k])"
+  - "def test_a():\n    assert all(i.ok for i in items if i.k), 'msg'"
+  - "def test_a(self):\n    self.assertTrue(all(i.ok for i in items if i.k))"
+  - "def helper(items):\n    assert all(i.ok for i in items if i.k)"

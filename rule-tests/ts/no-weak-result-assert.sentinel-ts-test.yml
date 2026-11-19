@@ -1,0 +1,22 @@
+id: no-weak-result-assert.sentinel-ts
+valid:
+  - "it('x', async () => { await expect(f()).rejects.toThrow(Forbidden); });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e) { expect(e).toBeInstanceOf(Forbidden); } });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e: any) { assert.equal(e.code, 'E1'); } });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e) { expect(e).not.toBe(sentinel); expect(e).toBeTruthy(); } });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e) { if (e.message === 'no throw') throw e; expect(e).toBeTruthy(); } });"
+  - "it('x', () => { try { f(); expect.unreachable(); } catch (e) { expect(String(e)).toContain('denied'); } });"
+  - "it('x', () => { expect.assertions(1); try { f(); throw new Error('no throw'); } catch (e) { expect(e).toBeDefined(); } });"
+  - "it('x', () => { try { f(); } catch (e) { expect(e).toBeTruthy(); } });"
+  - "it('x', () => { try { if (bad) { throw new Error('setup'); } f(); } catch (e) { expect(e).toBeTruthy(); } });"
+  - "function helper() { try { f(); throw new Error('no throw'); } catch (e) { expect(e).toBeTruthy(); } }"
+invalid:
+  - "it('x', async () => { try { await f(); throw new Error('expected f to throw'); } catch (e) { expect(e).toBeInstanceOf(Error); } });"
+  - "it('x', async () => { try { await f(); throw new Error('expected f to throw'); } catch (e) { expect(e).toBeDefined(); } });"
+  - "it('x', async () => { try { await f(); throw new Error('expected f to throw'); } catch (err) { expect(err.message).toBeTruthy(); } });"
+  - "it('x', async () => { try { await f(); throw new Error('expected f to throw'); } catch { expect(spy).toHaveBeenCalled(); } });"
+  - "it('x', async () => { try { await f(); throw new Error('expected f to throw'); } catch (e) { expect(spy).toHaveBeenCalled(); } });"
+  - "it('x', () => { try { f(); assert.fail('should throw'); } catch (e) { assert.ok(e); } });"
+  - "it('x', () => { try { f(); expect.unreachable(); } catch (e) { expect(e).not.toBeNull(); } });"
+  - "test('x', async () => { try { await f(); fail('no throw'); } catch (e) { assert.instanceOf(e, Error); } });"

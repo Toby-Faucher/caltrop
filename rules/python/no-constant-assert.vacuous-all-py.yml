@@ -1,0 +1,33 @@
+id: no-constant-assert.vacuous-all-py
+language: python
+severity: error
+message: "all() is true for an empty sequence. Assert how many items you expect first."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+# `all(x.ok for x in xs if x.kind == "a")` passes when no item matches the filter, even on a non-empty list.
+# An unfiltered `all(.. for x in xs)` is skipped: in the corpus xs was mostly a constant or checked some other way.
+utils:
+  filtered-comp:
+    any: [ { kind: generator_expression }, { kind: list_comprehension } ]
+    has: { kind: if_clause }
+  filtered-all:
+    kind: call
+    all:
+      - has: { field: function, regex: '^all$' }
+      - has:
+          field: arguments
+          any:
+            - matches: filtered-comp
+            - has: { nthChild: 1, matches: filtered-comp }
+rule:
+  any:
+    - kind: assert_statement
+      has: { nthChild: 1, matches: filtered-all }
+    - kind: call
+      all:
+        - has: { field: function, regex: '^self\.assertTrue$' }
+        - has: { field: arguments, has: { nthChild: 1, matches: filtered-all } }

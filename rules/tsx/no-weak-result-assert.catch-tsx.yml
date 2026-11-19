@@ -14,7 +14,8 @@ utils:
   assertion:
     kind: call_expression
     has: { field: function, regex: '^(expect|assert|fail)(\.\w+)*$' }
-  # What makes the test fail when nothing throws: an assertion, or a throw after the call.
+  # What makes the test fail when nothing throws: an assertion, or a throw after the call. A sentinel throw that
+  # the catch cannot tell apart from the real error is flagged by no-weak-result-assert.sentinel-ts instead.
   checks:
     any:
       - matches: assertion
