@@ -1,0 +1,22 @@
+id: no-assertion-free-test-ts
+valid:
+  - "it('adds', () => { expect(add(1, 2)).toBe(3); });"
+  - "it('adds', () => expect(add(1, 2)).toBe(3));"
+  - "test('shows', async ({ page }) => { await page.goto('/'); await expect(page.getByText('hi')).toBeVisible(); });"
+  - "test('eq', () => assert.equal(f(), 1));"
+  - "test('node', (t) => { t.assert.strictEqual(f(), 1); });"
+  - "it('rejects', async () => { await expect(load()).rejects.toThrow(NotFound); });"
+  - "it('renders', () => { render(App); screen.getByText('Hello'); });"
+  - "it('polls', async () => { await expect.poll(() => count()).toBe(2); });"
+  - "it('polls', async () => {\n  await expect\n    .poll(() => count())\n    .toBe(2);\n});"
+  - "it('checks', () => { if (!ok()) throw new Error('not ok'); });"
+  - "it('nested', () => { items.forEach((i) => expect(i).toBeGreaterThan(0)); });"
+  - "it('cy', () => { cy.get('h1').should('contain', 'Hi'); });"
+  - "it.todo('later');"
+  - "describe('suite', () => { setup(); });"
+invalid:
+  - "it('does not throw', () => { parse(input); });"
+  - "test('screenshot', async ({ page }) => { await page.goto('/'); await page.screenshot({ path: 'x.png' }); });"
+  - "it('accepts', async () => { await insert({ site }); });"
+  - "test.concurrent('x', async () => { await run(); });"
+  - "it(`renders ${name}`, function () { render(name); });"

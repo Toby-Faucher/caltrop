@@ -1,0 +1,12 @@
+id: no-test-filter-ts
+valid:
+  - "export default defineConfig({ test: { passWithNoTests: false } });"
+  - "export default defineConfig({ testMatch: '**/*.spec.ts' });"
+  # A project's testIgnore hands those specs to another project.
+  - "export default defineConfig({ projects: [{ name: 'chromium', testIgnore: /screenshots/ }, { name: 'shots', testMatch: /screenshots/ }] });"
+  - "const regular = { testIgnore: /screenshots\\.spec\\.ts$/ };"
+invalid:
+  - "export default defineConfig({ test: { passWithNoTests: true } });"
+  - "module.exports = { passWithNoTests: true };"
+  - "export default defineConfig({ testDir: './e2e', testIgnore: '**/flaky/**' });"
+  - "export default { testIgnore: ['**/slow.spec.ts'] };"

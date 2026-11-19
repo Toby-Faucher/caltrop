@@ -1,0 +1,26 @@
+# Generated from rules/ts/assert-helper-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: assert-helper-tsx
+language: tsx
+# Not reported: caltrop collects the $NAME of each test-code function that asserts, and drops a
+# no-assertion-free-test hit whose test calls one.
+severity: hint
+message: "A test helper that asserts."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  all:
+    - any:
+        - kind: function_declaration
+          has: { field: name, pattern: $NAME }
+        - kind: method_definition
+          has: { field: name, pattern: $NAME }
+        - kind: variable_declarator
+          all:
+            - has: { field: name, pattern: $NAME }
+            - has: { field: value, any: [ { kind: arrow_function }, { kind: function_expression } ] }
+    - has: { stopBy: end, matches: tsx-asserts }

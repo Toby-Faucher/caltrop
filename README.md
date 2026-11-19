@@ -12,7 +12,7 @@
 
 </div>
 
-caltrop covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped tests and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
+caltrop covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped or filtered tests, tests that assert nothing, and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
 
 ## What it catches
 
@@ -45,6 +45,7 @@ def test_retry():
 tests/test_worker.py:2: no-mock-libs: Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine.
 tests/test_worker.py:11: no-fixed-sleep: Await the operation or an event it emits (`asyncio.Event`, a queue, a future). To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers or timestamps, inject the clock or freeze time (`time-machine`, `freezegun`).
 tests/test_worker.py:15: no-ignored-test: An ignored test never runs in CI, and an xfail passes whether or not it fails. Make it run (fixture, dependency or a CI job), or delete it.
+tests/test_worker.py:16: no-assertion-free-test: This test checks nothing. Assert on the result. If 'does not raise' is the point, say so with an explicit assertion.
 run caltrop baseline to adopt caltrop in this repo
 ```
 
@@ -183,7 +184,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ### Python
 
-<details><summary>14 Python rules</summary>
+<details><summary>16 Python rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -202,6 +203,8 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 | `no-source-text-test` | In test code: `inspect.getsource(..)`/`getsourcelines(..)`; `open(..)` (not for writing) or `.read_text()`/`.read_bytes()` whose call names a `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.svelte`, `.vue` or `.rs` file in a string literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text passed to `exec`/`compile`/`eval` or copied with `.write_text(..)`; hash pins (`hashlib`, `sha*`, `*digest`); `getsource(a) == getsource(b)` parity checks. | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file or `inspect.getsource` passes whatever the code does at run time. |
 | `no-swallowed-error` | Directly in a `test*` function: `except ..: pass` or `...` (comments allowed), and `with suppress(..)`/`contextlib.suppress(..)`. Skipped: a handler inside `finally`, a `try` or `with` body that only cleans up (`close`, `kill`, `terminate`, `unlink`, `remove`, `rmtree`, `stop` and similar), and a `try` that ends in `raise AssertionError`/`self.fail`/`pytest.fail`/`assert False` with a handler narrower than `Exception`. | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`pytest.raises(X)`). Cleanup that may fail belongs in a fixture's teardown or `addCleanup`. |
 | `no-weak-result-assert` | A `with pytest.raises(..)`/`raises(..)`/`self.assertRaises(Regex)(..)` body with more than one statement, or one `if`/`while`/`for`/`try`/`match`/`with` (ruff PT012). Allowed, as in PT012: a `def` or `class`, a `for` whose body is only `pass` or `...`, a nested `with` around one simple statement. | Put only the call that should raise inside `pytest.raises`. Do the setup before it and the asserts after it: the error may come from the setup, and nothing after the raising line runs. |
+| `no-test-filter` | In the pytest section of any `pyproject.toml`, `pytest.ini`, `setup.cfg` or `tox.ini`: `addopts` with `--deselect`, `--ignore`, `--ignore-glob` or `-k`. | Run the whole suite in CI. Fix or delete the test you are filtering out, and let a run that finds no tests fail. |
+| `no-assertion-free-test` | In test code, a `test*` function with no `assert`, `raise`, `pytest.raises`/`warns`/`fail`, `self.assert*` or other `assert*`/`expect*`/`fail*` call, that also calls no function in Python test code (any file, `conftest.py` included) that asserts, directly or through another such function. `benchmark(..)` and `@pytest.mark.limit_memory`/`limit_leaks` tests are skipped. | This test checks nothing. Assert on the result. If 'does not raise' is the point, say so with an explicit assertion. |
 
 </details>
 
@@ -211,7 +214,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs`, `.mts` and `.cts` as TypeScript, `.tsx` and `.jsx` as tsx, and `.svelte` files as HTML, so the rules also run inside a component's `<script>` block. ast-grep treats tsx as its own language, so `rules/tsx/`, `utils/tsx/` and `rule-tests/tsx/` are generated copies of the `ts` ones: edit the `ts` file and run `scripts/gen-tsx.py`. A unit test fails if the copies are stale.
 
-<details><summary>15 TypeScript, JavaScript and Svelte rules</summary>
+<details><summary>17 TypeScript, JavaScript and Svelte rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -231,6 +234,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-source-text-test` | In test code: `readFileSync`/`readFile` (`fs.`, `fs.promises.`, `fsp.` too) whose arguments name a `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.mts`, `.cts`, `.svelte`, `.vue`, `.py` or `.rs` file in a string, template or `new URL(..)` literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text run by `vm.runIn*Context`, `new vm.Script`, `new Function` or `eval`, directly or through a `const` in the same block; hash pins (`.update(readFileSync(..))`). | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file passes whatever the code does at run time. |
 | `no-swallowed-error` | Inside an `it`/`test`/`specify` callback: `await f().catch(..)` as a statement with an empty handler (`() => {}`, `() => undefined`/`null`/`void 0`, `function () {}`, `noop`); an empty `catch {}`/`catch (e) {}` (comments allowed) whose `try` awaits something. Skipped: a used result (`const b = await r.json().catch(() => null)`), a `.catch` that is not awaited, a sync `try`, `finally` blocks, before/after hooks, Playwright fixture code after `await use(..)`, and best-effort cleanup (`close`, `kill`, `rm`, `unlink`, `chmod`, `destroy`, `dispose`, `stop` and similar). | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`rejects.toThrow(X)`). Cleanup that may fail belongs in `afterEach` or a fixture's teardown. |
 | `no-weak-result-assert` | A `try` in an `it`/`test` callback (not in a nested function) whose `catch` has the only `expect`/`assert` calls: the `try` block has no assertion or `throw`, the `catch` does not `throw` or `return`, nothing after the `try` asserts or throws, and the test has no `expect.assertions(n)`/`expect.hasAssertions()`. | The catch only runs if something throws, so this test passes when nothing does. Use `expect(() => f()).toThrow(X)` or `await expect(p).rejects.toThrow(X)`. |
+| `no-test-filter` | `--passWithNoTests` (or `--pass-with-no-tests`) in a `package.json` script; `passWithNoTests: true` in a vite/vitest/jest config or the `jest` key of `package.json`; `testIgnore` at the top level of a Playwright config (in a `projects[]` entry it is skipped: there it hands specs to another project). | Run the whole suite in CI. Fix or delete the test you are filtering out, and let a run that finds no tests fail. |
+| `no-assertion-free-test` | An `it`/`test`/`specify` callback with no `expect(..)` (`expect.poll`, `.resolves`/`.rejects` and Playwright web-first assertions included), `assert`/`t.assert` call, `.should(..)`, `*.fail(..)`, Testing Library `getBy*`/`findBy*` query or `throw`, nested callbacks included, that also calls no test-code function that asserts. | This test checks nothing. Assert on the result. If 'does not throw' is the point, say so with an explicit assertion. |
 
 </details>
 
@@ -254,7 +259,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>22 Python limits</summary>
+<details><summary>25 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -278,12 +283,15 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-conditional-assert` also reports an `if` that is a deliberate implication (`if a != b: assert marks`, "when it diverges, a trace is logged") and an `if` whose block runs setup that happens to assert. Assert the condition first, or allowlist it.
 - `no-swallowed-error` only checks code directly in a `test*` function, so a swallowed error in a helper, a thread worker or a nested `def` is missed. `except ..: continue` is not flagged: in parse and retry loops it skips bad input.
 - `no-swallowed-error` also flags a handler for the test's own sentinel exception (`raise Stop()` to end a run early) and `except E: pass` followed by an assert that fails anyway when `E` is raised. Allowlist those.
+- `no-assertion-free-test` matches helpers by name only: a test that calls `run(..)` is skipped if any function named `run` in test code asserts. A helper outside test code, or in a file this Python cannot parse, is not seen, so a test whose only check lives there is reported. Allowlist it, or move the helper into test code.
+- `no-test-filter` does not report `-m` in `addopts` (selecting by marker is how a suite is split into CI jobs) or `xfail_strict = false` (the default; every xfail is already reported by `no-ignored-test`).
+- A test that only checks that nothing raises is reported by `no-assertion-free-test`. That is on purpose: write the check out (`assert validate(x) is None`), so a reader sees it is the point.
 
 </details>
 
 ### TypeScript, JavaScript and Svelte
 
-<details><summary>21 TypeScript, JavaScript and Svelte limits</summary>
+<details><summary>23 TypeScript, JavaScript and Svelte limits</summary>
 
 - Playwright's conditional `test.fail(cond, ..)` counts as `no-ignored-test`, like a conditional `pytest.mark.xfail(cond)`, while a conditional `test.skip(cond, ..)` counts as `no-silent-skip`. An expected failure passes while the code is broken whatever the condition.
 - An empty `waitFor` is only caught when the callback is literally empty or returns a literal. `waitFor(() => ready)` or a callback that calls something without asserting is not flagged.
@@ -306,6 +314,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-swallowed-error` flags `await p.catch(() => null)` on a promise the test already checked, and a `.catch(() => {})` in a mock implementation inside a test that imitates a retry. Allowlist those.
 - The catch-only check in `no-weak-result-assert` sees `try`/`catch`, not `.catch(e => expect(..))` on a promise, and not a `try` inside a helper the test calls.
 - Tests whose only checks are `toBeTruthy()`, `toBeDefined()`, `not.toBeNull()` or `not.toBeUndefined()` are not flagged. A draft rule that skipped Testing Library `getBy*`/`findBy*`/`queryBy*` and `querySelector` subjects still hit 57 tests in food, evia-manager and claude-orchestrator, and 6 of a 15-test sample were fine: presence was the contract ("rows are not swept", "each category is accepted") or a helper did the asserting.
+- `no-assertion-free-test` matches helpers by name only, the same way as in Python, and only sees helpers that assert directly: a helper that asserts through another helper, or one outside test code, does not count. A Playwright `page.getByRole(..)` alone is not an assertion (it does not throw); Testing Library's `getBy*` is.
+- `no-test-filter` does not read `--passWithNoTests` passed from a script file (`spawn('vitest', ['--passWithNoTests'])`), nor `exclude`/`testPathIgnorePatterns`, which usually skip non-test files.
 
 </details>
 

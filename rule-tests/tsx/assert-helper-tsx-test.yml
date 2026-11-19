@@ -1,0 +1,11 @@
+# Generated from rule-tests/ts/assert-helper-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: assert-helper-tsx
+valid:
+  - "function setup() { return render(App); }"
+  - "const make = () => ({ id: 1 });"
+  - "it('x', () => { expect(1).toBe(1); });"
+invalid:
+  - "function refused(r) { expect(r.status).toBe(403); }"
+  - "const verify = (x) => assert.equal(x, 1);"
+  - "class Page { check() { expect(this.el).toBeVisible(); } }"
+  - "const must = function (x) { if (!x) throw new Error('no'); };"

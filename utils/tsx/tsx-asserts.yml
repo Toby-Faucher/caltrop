@@ -1,0 +1,12 @@
+# Generated from utils/ts/ts-asserts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: tsx-asserts
+language: tsx
+# An assertion: expect(..), assert.*(..), t.assert.*(..), chai/Cypress .should, *.fail(..), a throw, or a
+# Testing Library getBy*/findBy* query (it throws when the element is missing).
+rule:
+  any:
+    - kind: throw_statement
+    - kind: call_expression
+      has:
+        field: function
+        regex: '(^|\.)(expect|assert|should)\s*(\.|$)|(^|\.)_*(expect|assert|should|fail)\w*$|^(screen\.)?(get|find)(All)?By'

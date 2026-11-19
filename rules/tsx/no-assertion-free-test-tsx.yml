@@ -1,0 +1,30 @@
+# Generated from rules/ts/no-assertion-free-test-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-assertion-free-test-tsx
+language: tsx
+severity: error
+message: "This test checks nothing. Assert on the result. If 'does not throw' is the point, say so with an explicit assertion."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# it('name', () => { .. }) whose callback has no assertion, nested callbacks included. caltrop then drops a hit
+# whose callback calls a test-code function that asserts (assert-helper-ts).
+rule:
+  kind: call_expression
+  all:
+    - has: { field: function, regex: '^(it|test|specify)(\.(concurrent|serial|sequential))?$' }
+    - has:
+        field: arguments
+        all:
+          - has: { nthChild: 1, any: [ { kind: string }, { kind: template_string } ] }
+          - has:
+              any: [ { kind: arrow_function }, { kind: function_expression } ]
+              has:
+                field: body
+                not:
+                  any:
+                    - matches: tsx-asserts
+                    - has: { stopBy: end, matches: tsx-asserts }

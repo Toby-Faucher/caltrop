@@ -1,0 +1,11 @@
+id: no-test-filter-json
+valid:
+  - '{ "scripts": { "test": "vitest run" } }'
+  - '{ "jest": { "passWithNoTests": false } }'
+  # Not a script: lint-staged and other tools are not the CI test run.
+  - '{ "lint-staged": { "*.ts": "vitest related --run --passWithNoTests" } }'
+  - '{ "description": "use --passWithNoTests carefully" }'
+invalid:
+  - '{ "scripts": { "test": "vitest run --passWithNoTests" } }'
+  - '{ "scripts": { "test": "jest --pass-with-no-tests" } }'
+  - '{ "jest": { "passWithNoTests": true } }'

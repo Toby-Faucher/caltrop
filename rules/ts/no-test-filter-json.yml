@@ -1,0 +1,23 @@
+id: no-test-filter-json
+language: json
+severity: error
+message: "Run the whole suite in CI. Fix or delete the test you are filtering out, and let a run that finds no tests fail."
+files:
+  - "**/package.json"
+rule:
+  any:
+    # "scripts": { "test": "vitest run --passWithNoTests" }
+    - kind: string
+      regex: '(?i)--pass-?with-?no-?tests\b'
+      inside:
+        kind: pair
+        inside:
+          kind: object
+          inside:
+            kind: pair
+            has: { field: key, regex: '^"scripts"$' }
+    # "jest": { "passWithNoTests": true }
+    - kind: pair
+      all:
+        - has: { field: key, regex: '^"passWithNoTests"$' }
+        - has: { field: value, kind: "true" }

@@ -1,0 +1,21 @@
+id: no-assertion-free-test-py
+valid:
+  - "def test_add():\n    assert add(1, 2) == 3\n"
+  - "def test_raises():\n    with pytest.raises(ValueError):\n        parse('x')\n"
+  - "class TestX(unittest.TestCase):\n    def test_eq(self):\n        self.assertEqual(f(), 1)\n"
+  - "def test_mock(m):\n    run(m)\n    m.assert_called_once_with(1)\n"
+  - "def test_np():\n    np.testing.assert_allclose(f(), 1.0)\n"
+  - "def test_fail():\n    if not ok():\n        pytest.fail('not ok')\n"
+  - "def test_raise():\n    if not ok():\n        raise AssertionError('not ok')\n"
+  - "def test_private_helper():\n    with _raises(Refused):\n        guard()\n"
+  - "def test_nested():\n    def check(x):\n        assert x\n    check(f())\n"
+  - "def test_bench(benchmark):\n    benchmark(transform, df)\n"
+  - "@pytest.mark.limit_memory('30 MB')\ndef test_leak():\n    for _ in range(500):\n        f()\n"
+  - "def helper():\n    run()\n"
+  - "def test_outer():\n    assert True\n    def test_inner():\n        run()\n"
+invalid:
+  - "def test_valid_cpf_does_not_raise():\n    validate_cpf('12345678909')\n"
+  - "async def test_probe(http):\n    note('x', await http.get('/'))\n"
+  - "class TestX:\n    def test_json(self):\n        json.dumps(parse(x))\n"
+  - "@pytest.mark.parametrize('x', [1, 2])\ndef test_accepts(x):\n    validate(x)\n"
+  - "def test_universe():\n    pass\n"
