@@ -1,0 +1,32 @@
+# Generated from rule-tests/ts/no-constant-assert-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-constant-assert-tsx
+valid:
+  - "it('a', () => { expect(f()).toBe(true); });"
+  - "it('a', () => { expect(x).toBe(y); });"
+  # A literal subject compared with a value from the code is only written backwards.
+  - "it('a', () => { expect(1).toBe(count); });"
+  # Determinism checks call the code twice.
+  - "it('a', () => { expect(hashToolSchema(base)).toBe(hashToolSchema(base)); });"
+  - "it('a', () => { expect(deriveKey(a, b)).toEqual(deriveKey(a, b)); });"
+  # A string subject tests the matcher's argument (a regex).
+  - "it('a', () => { expect('user@example.com').toMatch(EMAIL_RE); });"
+  # A real bound on a value that could be negative.
+  - "it('a', () => { expect(r.top).toBeGreaterThanOrEqual(0); });"
+  - "it('a', () => { expect(list.length).toBeGreaterThanOrEqual(1); });"
+  - "it('a', () => { expect(x).not.toBe(x); });"
+  - "it('a', () => { assert(ok); assert.ok(res.ok); });"
+  - "it('a', () => { assert(false, 'unreachable'); });"
+invalid:
+  - "it('placeholder', () => { expect(true).toBe(true); });"
+  - "it('a', () => { expect(false).toBeFalsy(); });"
+  - "it('a', () => { expect(null).toBeNull(); });"
+  - "it('a', () => { expect(undefined).not.toBeDefined(); });"
+  - "it('a', () => { expect(1).toEqual(1); });"
+  - "it('a', () => { expect(-1).toStrictEqual(-1); });"
+  - "it('a', () => { expect(WRAPPER_URL).toBe(WRAPPER_URL); });"
+  - "it('a', () => { expect(this.cfg.url).toEqual(this.cfg.url); });"
+  - "it('a', () => { expect(stats.size).toBeGreaterThanOrEqual(0); });"
+  - "it('a', () => { expect(getRows().length).toBeGreaterThanOrEqual(0); });"
+  - "test('a', () => { assert(true); });"
+  - "test('a', () => { assert.ok(true); });"
+  - "test('a', () => { assert.ok(true, 'reached'); });"

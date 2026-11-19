@@ -1,0 +1,38 @@
+# Generated from rules/ts/no-constant-assert-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-constant-assert-tsx
+language: tsx
+severity: error
+message: "This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  any:
+    # expect(true).toBe(true), expect(null).toBeNull(): a literal subject and a literal or no expected value.
+    # String subjects are skipped: `expect('a1').toMatch(RE)` tests the regex.
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            regex: '^expect\(\s*(true|false|null|undefined|-?\d+(\.\d+)?)\s*\)\s*\.\s*(not\s*\.\s*)?(toBe|toEqual|toStrictEqual|toBeTruthy|toBeFalsy|toBeDefined|toBeNull|toBeUndefined)$'
+        - has:
+            field: arguments
+            regex: '^\(\s*(true|false|null|undefined|-?\s*\d+(\.\d+)?)?\s*\)$'
+    # expect(x).toBe(x) on a name or property path. expect(f(x)).toBe(f(x)) is a determinism check: skipped.
+    - pattern: expect($A).toBe($A)
+    - pattern: expect($A).toEqual($A)
+    - pattern: expect($A).toStrictEqual($A)
+    - pattern: expect($O.$P).toBeGreaterThanOrEqual(0)
+    - pattern: assert(true)
+    - pattern: assert(true, $$$)
+    - pattern: assert.ok(true)
+    - pattern: assert.ok(true, $$$)
+constraints:
+  A:
+    regex: '^[\w$]+(\.[\w$]+)*$'
+  P:
+    regex: '^(length|size)$'
