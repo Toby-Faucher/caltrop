@@ -7,6 +7,24 @@ valid:
   - "class RealApi implements Api {}"
   - "const fakeApi: Api = { load: async () => [] };"
   - "class TestError extends Error {}"
+  # A base that only contains a fake word is not a fake base.
+  - "class Bird extends Mockingbird {}"
+  - "class Provider extends FakerProvider {}"
+  # Classes at module level or in describe are only checked by name.
+  - "class Helper { build() { return 1; } }"
+  - "describe('x', () => { class Helper { build() { return 1; } } });"
+  # Error types and plain data declared in a test.
+  - "it('x', () => { class BoomError extends Error { get code() { return 1; } } });"
+  - "test('x', () => { class Row { id = 1; } });"
+  - "test('x', () => { class Row { constructor(public id: number) {} } });"
+  # A subclass of a real class in a test: an extension point under test or an instrumented real object.
+  - "it('sends once', () => { class CountingMailer extends SmtpMailer { calls = 0; send(m: string) { this.calls++; return super.send(m); } } });"
+  # Failure words: an error type, plain data, a word that only starts with one.
+  - "class BrokenLinkError extends Error {}"
+  - "class FlakyResult { ok = false; }"
+  - "class Boomerang implements Toy {}"
+  # A class in a helper function, not directly in the test callback.
+  - "it('x', () => { function make() { class Down { send() { throw new Error(); } } return new Down(); } });"
 invalid:
   - "class FakeApi implements Api { async load() { return []; } }"
   - "class MockEventSource extends EventTarget {}"
@@ -15,3 +33,16 @@ invalid:
   - "class Fake implements Store {}"
   - "const C = class FakeSocket extends EventTarget {};"
   - "abstract class DummyRepo implements Repo {}"
+  # Extends a fake, whatever its own name.
+  - "class SecondSendRaises extends FakeClient { send() { throw new Error(); } }"
+  - "class PartialOutage extends FakeClient {}"
+  - "class Flaky extends fakes.FakeClient<string> {}"
+  # Declared in a test callback, with a method: an ad-hoc fake.
+  - "it('retries', async () => { class Boom { send() { throw new Error('down'); } } await run(new Boom()); });"
+  - "test('x', function () { class AlwaysDown implements Mailer { async send() { return false; } } });"
+  - "it('x', () => { const m = new (class { send() { return 1; } })(); });"
+
+  # Named for the failure it fakes.
+  - "class FlakyApi implements Api { async load() { throw new Error('down'); } }"
+  - "export class AlwaysDown { send() { return false; } }"
+  - "class NeverReady extends Probe {}"
