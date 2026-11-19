@@ -21,6 +21,7 @@ jobs:
       - run: pipx install ast-grep-cli==0.44.1
       - run: ast-grep test -c sgconfig.yml --skip-snapshot-tests
       - run: ${{ steps.py.outputs.python-path }} -m unittest discover -s tests -v
+      - run: ${{ steps.py.outputs.python-path }} caltrop check .
   lint:
     runs-on: ubuntu-24.04
     steps:

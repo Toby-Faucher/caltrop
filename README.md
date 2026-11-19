@@ -345,6 +345,8 @@ ast-grep test -c sgconfig.yml --skip-snapshot-tests
 python3 -m unittest discover -s tests -v
 ```
 
+CI also runs `./caltrop check .` on this repo; `caltrop.toml` allows only the deliberate dirty fixture.
+
 To add a rule or a language, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credit
