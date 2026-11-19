@@ -26,3 +26,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pipx run ruff==0.17.4 check caltrop tests
+  action:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          dir: tests/fixtures/clean
+      - id: dirty
+        uses: ./
+        continue-on-error: true
+        with:
+          dir: tests/fixtures/dirty
+      - if: steps.dirty.outcome != 'failure'
+        run: echo "caltrop passed a dirty fixture" && exit 1
