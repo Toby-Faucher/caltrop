@@ -26,7 +26,7 @@ RETRY_MSG = "Make the test deterministic; a retry hides the flake."
 PYTEST_CONFIGS = {"pytest.ini": "pytest", "tox.ini": "pytest", "setup.cfg": "tool:pytest"}
 SKIP_DIRS = {"vendor", "node_modules", "site-packages"}
 # Bumped by each release pull request; see docs/versions.md.
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 AST_GREP = "0.44.1"
 INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
 USAGE = ("usage: caltrop check [--format text|github] [REPO_DIR]\n"
