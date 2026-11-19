@@ -1,0 +1,10 @@
+id: no-coverage-pragma-ts
+language: typescript
+severity: error
+message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
+# Production code too: that is where coverage exclusions live. No files: glob.
+rule:
+  kind: comment
+  # The ignore hints istanbul, c8, vitest's v8 provider and node --test honour. A start/stop or disable/enable
+  # pair counts once, at the start.
+  regex: '^(//|/\*+)\s*((istanbul|c8|v8)\s+ignore\s+(next|if|else|file|start)|node:coverage\s+(ignore\s+next|disable))\b'

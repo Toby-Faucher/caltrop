@@ -1,0 +1,10 @@
+id: no-coverage-pragma-js
+language: javascript
+severity: error
+message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
+# Plain <script> in .svelte is injected as javascript; .js files are already typescript (sgconfig), so this only adds Svelte components.
+rule:
+  kind: comment
+  # The ignore hints istanbul, c8, vitest's v8 provider and node --test honour. A start/stop or disable/enable
+  # pair counts once, at the start.
+  regex: '^(//|/\*+)\s*((istanbul|c8|v8)\s+ignore\s+(next|if|else|file|start)|node:coverage\s+(ignore\s+next|disable))\b'

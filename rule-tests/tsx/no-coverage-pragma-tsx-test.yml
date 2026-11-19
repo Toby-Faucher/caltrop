@@ -1,0 +1,22 @@
+# Generated from rule-tests/ts/no-coverage-pragma-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-coverage-pragma-tsx
+valid:
+  # stop/enable close a range already reported at its start.
+  - "/* c8 ignore stop */"
+  - "/* v8 ignore stop */"
+  - "/* node:coverage enable */"
+  - "// we do not use istanbul ignore next here"
+  - "/* eslint-disable-next-line no-console */\nconsole.log(1);"
+  - "const s = '/* istanbul ignore next */';"
+invalid:
+  - "/* istanbul ignore next */\nfunction f() {}"
+  - "if (x) { /* istanbul ignore else */ y(); }"
+  - "/* istanbul ignore file */"
+  - "// istanbul ignore next\nconst a = 1;"
+  - "/* c8 ignore next 3 */\nconst a = 1;"
+  - "/* c8 ignore start */\nconst a = 1;\n/* c8 ignore stop */"
+  - "/* v8 ignore next -- @preserve */\nconst a = 1;"
+  - "/* v8 ignore start -- process wiring; main() is covered by tests */"
+  - "/** istanbul ignore next */\nexport class A {}"
+  - "/* node:coverage ignore next */\nconst a = 1;"
+  - "/* node:coverage disable */"
