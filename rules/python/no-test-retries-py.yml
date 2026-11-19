@@ -1,0 +1,18 @@
+id: no-test-retries-py
+language: python
+severity: error
+message: "Make the test deterministic; a retry hides the flake."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  any:
+    # pytest-rerunfailures, as a decorator, pytestmark or marks= entry.
+    - kind: attribute
+      regex: '^(pytest\.)?mark\.flaky$'
+    # The flaky package: @flaky, @flaky(max_runs=3).
+    - kind: decorator
+      regex: '^@\s*(flaky\.)?flaky\s*(\(|$)'

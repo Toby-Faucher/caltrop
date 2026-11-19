@@ -1,0 +1,15 @@
+id: no-ignored-test-py
+language: python
+severity: error
+message: "An ignored test never runs in CI, and an xfail passes whether or not it fails. Make it run (fixture, dependency or a CI job), or delete it."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  # Decorator, pytestmark and pytest.param(marks=..) all reach the mark as an attribute.
+  # Conditional skips (skipif, skipIf, skipUnless) belong to no-silent-skip.
+  kind: attribute
+  regex: '^((pytest\.)?mark\.(skip|xfail)|unittest\.(skip|expectedFailure))$'

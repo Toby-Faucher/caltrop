@@ -1,0 +1,18 @@
+id: ts-in-loop
+language: typescript
+# Inside a loop body; the search stops at the nearest function, so a callback in a loop is not "in" it.
+rule:
+  inside:
+    any:
+      - kind: for_statement
+      - kind: for_in_statement
+      - kind: while_statement
+      - kind: do_statement
+    stopBy:
+      any:
+        - kind: arrow_function
+        - kind: function_expression
+        - kind: function_declaration
+        - kind: generator_function
+        - kind: generator_function_declaration
+        - kind: method_definition

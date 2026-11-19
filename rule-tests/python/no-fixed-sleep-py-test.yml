@@ -1,0 +1,20 @@
+id: no-fixed-sleep-py
+valid:
+  - "def test_a():\n    while not done():\n        time.sleep(0.1)"
+  - "async def test_a():\n    for _ in range(3):\n        await asyncio.sleep(1)"
+  - "async def test_a():\n    await asyncio.sleep(0)"
+  - "def test_a():\n    def sleep(s):\n        calls.append(s)\n    sleep(1)"
+  - "def test_a(monkeypatch):\n    monkeypatch.setattr(time, 'sleep', lambda s: None)"
+  - "def test_a():\n    run(sleep=fake_sleep)"
+  - "from time import monotonic\ndef test_a():\n    sleep(1)"
+  - "def test_a():\n    clock.sleep(1)"
+invalid:
+  - "import time\ndef test_a():\n    time.sleep(0.5)"
+  - "async def test_a():\n    await asyncio.sleep(0.1)"
+  - "from time import sleep\ndef test_a():\n    sleep(1)"
+  - "from asyncio import (\n    Event,\n    sleep,\n)\nasync def test_a():\n    await sleep(1)"
+  - "async def test_a():\n    await trio.sleep(1)"
+  - "async def test_a():\n    await anyio.sleep(1)"
+  - "def test_a():\n    while x:\n        def later():\n            time.sleep(1)"
+  - "def test_a():\n    for x in xs:\n        f = lambda: time.sleep(1)"
+  - "@pytest.fixture\ndef server():\n    start()\n    time.sleep(2)\n    yield"

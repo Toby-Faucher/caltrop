@@ -1,0 +1,12 @@
+id: no-deadline-poll-py
+valid:
+  - "def test_a():\n    time.sleep(1)"
+  - "def test_a():\n    while not done():\n        await asyncio.sleep(0)"
+  - "def test_a():\n    while x:\n        def later():\n            time.sleep(1)"
+  - "def test_a():\n    for x in xs:\n        f = lambda: time.sleep(1)"
+  - "def test_a():\n    while not done():\n        clock.sleep(1)"
+invalid:
+  - "def test_a():\n    deadline = time.monotonic() + 5\n    while time.monotonic() < deadline:\n        if ready():\n            break\n        time.sleep(0.1)"
+  - "async def test_a():\n    for _ in range(50):\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    async for ev in stream():\n        await asyncio.sleep(0.1)"
+  - "from time import sleep\ndef wait_until(pred):\n    while not pred():\n        sleep(0.05)"

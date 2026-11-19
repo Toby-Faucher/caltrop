@@ -1,0 +1,13 @@
+id: py-in-test-fn
+language: python
+# The nearest enclosing function is a test_* function (a nested helper def does not count).
+rule:
+  inside:
+    kind: function_definition
+    stopBy:
+      any:
+        - kind: function_definition
+        - kind: lambda
+    has:
+      field: name
+      regex: '^test'

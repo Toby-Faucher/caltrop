@@ -1,0 +1,28 @@
+id: no-weak-result-assert-py
+language: python
+severity: error
+message: "Assert which error. Raise and catch the specific exception type (`pytest.raises(ValueError, match=..)`), not `Exception`, which passes on any bug."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  kind: call
+  all:
+    - has:
+        field: function
+        regex: '^(pytest\.raises|self\.assertRaises)$'
+    - has:
+        field: arguments
+        has:
+          nthChild: 1
+          regex: '^(builtins\.)?(Exception|BaseException)$'
+    # A match= pattern still pins down the error.
+    - not:
+        has:
+          field: arguments
+          has:
+            kind: keyword_argument
+            regex: '^match\s*='

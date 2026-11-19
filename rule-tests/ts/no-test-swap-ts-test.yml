@@ -1,0 +1,20 @@
+id: no-test-swap-ts
+valid:
+  - "if (import.meta.env.DEV) { log(); }"
+  - "if (import.meta.env.PROD) { track(); }"
+  - "import { dev } from '$app/environment'; if (dev) { log(); }"
+  - "if (process.env.NODE_ENV === 'production') { minify(); }"
+  - "if (import.meta.env.MODE === 'testing-ground') {}"
+  - "const pool = process.env.VITEST_POOL_ID;"
+  - "process.env.VITEST = 'true';"
+  - "if (import.meta.vitest) { const { it, expect } = import.meta.vitest; it('x', () => expect(1).toBe(1)); }"
+  - "const t = env.MODE === 'test';"
+invalid:
+  - "if (import.meta.env.MODE === 'test') { return fake; }"
+  - "const isTest = import.meta.env.MODE !== \"test\";"
+  - "if ('test' == process.env.NODE_ENV) {}"
+  - "if (process.env.NODE_ENV === `test`) {}"
+  - "if (import.meta.env.VITEST) { return; }"
+  - "const t = !!process.env.VITEST;"
+  - "if (process.env.JEST_WORKER_ID !== undefined) {}"
+  - "if (a && process.env.NODE_ENV !== 'test') {}"

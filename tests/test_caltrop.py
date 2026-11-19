@@ -167,6 +167,52 @@ class CaltropTest(Fixture):
         self.assertIn(".config/nextest.toml:2:", r.stdout)
         self.assertIn(".config/nextest.toml:6:", r.stdout)
 
+    def test_pytest_reruns_in_config(self):
+        self.write("pyproject.toml", '[tool.pytest.ini_options]\naddopts = "-q --reruns 2"\n')
+        self.write("pytest.ini", "[pytest]\nreruns = 1\n")
+        self.write("setup.cfg", "[tool:pytest]\naddopts = --reruns=0 --reruns-delay 5\n")
+        self.write("backend/pyproject.toml",
+                   '[tool.pytest.ini_options]\naddopts = [\n  "-q",\n  "--reruns",\n  "3",\n]\n')
+        self.write("tox.ini", "[pytest]\naddopts =\n    -q\n    --reruns\n    2\n")
+        r = self.check()
+        self.assertIn("pyproject.toml:2: no-test-retries:", r.stdout)
+        self.assertIn("pytest.ini:2: no-test-retries:", r.stdout)
+        self.assertIn("backend/pyproject.toml:4: no-test-retries:", r.stdout)
+        self.assertIn("tox.ini:4: no-test-retries:", r.stdout)
+        self.assertNotIn("setup.cfg", r.stdout)
+
+    def test_pytest_reruns_not_in_comments_or_other_tables(self):
+        self.write("pyproject.toml", '[tool.pytest.ini_options]\n# addopts = "--reruns 3"\n'
+                   'addopts = "-q"\n\n[tool.other]\nreruns = 4\n')
+        self.write("node_modules/x/pytest.ini", "[pytest]\nreruns = 1\n")
+        self.assertEqual(self.check().returncode, 0, self.check().stdout)
+
+    def test_python_and_svelte_share_rule_ids(self):
+        self.write("tests/test_a.py", "import time\n\ndef test_x():\n    time.sleep(1)\n")
+        self.write("src/A.svelte", '<script>\nif (import.meta.env.MODE === "test") x();\n</script>\n')
+        self.write("src/B.svelte", '<script lang="ts">\nif (process.env.VITEST) x();\n</script>\n')
+        self.write("src/c.test.ts", "it.skip('x', () => {});\n")
+        r = self.check()
+        self.assertIn("tests/test_a.py:4: no-fixed-sleep:", r.stdout)
+        self.assertIn("src/A.svelte:2: no-test-swap:", r.stdout)
+        self.assertIn("src/B.svelte:2: no-test-swap:", r.stdout)
+        self.assertIn("src/c.test.ts:1: no-ignored-test:", r.stdout)
+        self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
+        toml = (self.repo / "caltrop.toml").read_text()
+        self.assertNotIn("-py", toml)
+        self.assertNotIn("-ts", toml)
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_dependency_dirs_skipped(self):
+        self.write("node_modules/x/tests/a.rs", SLEEP)
+        self.write("venv/lib/python3.12/site-packages/x/tests/a.rs", SLEEP)
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_version(self):
+        r = run("--version")
+        self.assertEqual(r.returncode, 0)
+        self.assertRegex(r.stdout, r"^caltrop \d+\.\d+\.\d+\n$")
+
     def test_nextest_zero_retries(self):
         self.write(".config/nextest.toml", "[profile.default]\nretries = 0\n")
         self.assertEqual(self.check().returncode, 0)

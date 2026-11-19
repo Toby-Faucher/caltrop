@@ -1,0 +1,17 @@
+id: no-deadline-poll-ts
+language: typescript
+severity: error
+message: "Wait on a signal (an event, a promise the code resolves, `expect.poll`/`waitFor` on the real condition), not a sleep in a loop."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  all:
+    - matches: ts-sleep-call
+    - matches: ts-in-loop
+    - not:
+        matches: ts-in-fake-timer-file

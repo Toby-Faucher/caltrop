@@ -1,0 +1,20 @@
+id: no-fake-impls-py
+language: python
+severity: error
+message: "Use the real implementation. A hand-written fake class that stands in for a real type is a mock, with or without a base class. A real local server on a socket is fine."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  kind: class_definition
+  has:
+    field: name
+    regex: '^_*(Mock|Fake|Stub|Spy|Dummy)([A-Z_0-9]|$)'
+  not:
+    # A test-only exception type is not a stand-in for a real one.
+    has:
+      field: superclasses
+      regex: '^\(\s*[\w.]*(Exception|Error|Warning)\s*\)$'

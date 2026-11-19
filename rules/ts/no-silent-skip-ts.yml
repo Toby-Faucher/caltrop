@@ -1,0 +1,51 @@
+id: no-silent-skip-ts
+language: typescript
+severity: error
+message: "A test must not skip itself when a prerequisite is missing; it reports a pass or a skip that nobody reads. Provide the prerequisite in CI and fail with a clear message if it is absent."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  early-return:
+    kind: return_statement
+    regex: '(?s)^return(\s+console\.\w+\(.*\))?;?$'
+    matches: ts-in-test-body
+  missing-check:
+    regex: '(?s)^\(\s*!.*\b(existsSync|exists|isFile|isDirectory|process\.env|import\.meta\.env|env\.\w+|which|find\w*|\w*[Aa]vailable|\w*[Pp]resent|\w*[Ii]nstalled|\w*[Ss]upported|ready|isReady)\b'
+rule:
+  any:
+    - kind: call_expression
+      has:
+        field: function
+        regex: '^(it|test|describe|suite|bench|context|specify)(\.\w+)*\.(skipIf|runIf)$'
+    # Playwright's conditional form: test.skip(cond, 'reason'), test.fixme(cond).
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            regex: '^(it|test|describe)(\.(describe|serial|parallel))*\.(skip|fixme)$'
+        - has: { field: arguments, has: { nthChild: 1 } }
+        - not:
+            has:
+              field: arguments
+              has:
+                any: [ { kind: arrow_function }, { kind: function_expression } ]
+                not: { nthChild: 1 }
+    # vitest context skip (ctx.skip(), ({ skip }) => skip()) and mocha this.skip().
+    - kind: call_expression
+      has:
+        field: function
+        regex: '^((ctx|context|this|t)\.)?skip$'
+      matches: ts-in-test-body
+    - kind: if_statement
+      all:
+        - has: { field: condition, matches: missing-check }
+        - has:
+            field: consequence
+            any:
+              - matches: early-return
+              - has: { matches: early-return }

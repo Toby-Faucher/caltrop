@@ -1,0 +1,13 @@
+id: no-weak-result-assert-py
+valid:
+  - "def test_a():\n    with pytest.raises(ValueError):\n        f()"
+  - "def test_a():\n    with pytest.raises(Exception, match='bad input'):\n        f()"
+  - "def test_a():\n    with pytest.raises((ValueError, KeyError)):\n        f()"
+  - "def test_a():\n    with pytest.raises(MyException):\n        f()"
+  - "def test_a(self):\n    self.assertRaisesRegex(Exception, 'bad', f)"
+invalid:
+  - "def test_a():\n    with pytest.raises(Exception):\n        f()"
+  - "def test_a():\n    with pytest.raises(BaseException):\n        f()"
+  - "def test_a():\n    pytest.raises(Exception, f, 1)"
+  - "def test_a(self):\n    with self.assertRaises(Exception):\n        f()"
+  - "def test_a():\n    with pytest.raises(Exception) as e:\n        f()"

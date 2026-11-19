@@ -1,0 +1,49 @@
+id: no-silent-skip-py
+language: python
+severity: error
+message: "A test must not skip or return early when a prerequisite is missing. Provide the prerequisite in CI, and fail with a clear message if it is absent."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  missing-check:
+    all:
+      - regex: '(?s)(^not\b|\bnot\s+in\b|\bis\s+None\b|==\s*None\b)'
+      - regex: '\b(which|exists|isfile|is_file|isdir|is_dir|environ|getenv|find_spec|find_library|\w*available|\w*installed|\w*present)\b'
+rule:
+  any:
+    - kind: call
+      has:
+        field: function
+        regex: '^(pytest\.(skip|importorskip)|self\.skipTest)$'
+    - kind: attribute
+      regex: '^((pytest\.)?mark\.skipif|unittest\.skip(If|Unless))$'
+    # Report the return itself, so nested guards around one return give one hit.
+    - kind: return_statement
+      matches: py-in-test-fn
+      any:
+        - inside:
+            stopBy:
+              any:
+                - kind: function_definition
+                - kind: lambda
+            # A block whose parent is the if is its consequence; else/elif blocks sit under their clause.
+            kind: block
+            inside:
+              kind: if_statement
+              has:
+                field: condition
+                matches: missing-check
+        - inside:
+            stopBy:
+              any:
+                - kind: function_definition
+                - kind: lambda
+            kind: except_clause
+            has:
+              regex: '\b(ImportError|ModuleNotFoundError)\b'
+              not:
+                kind: block
