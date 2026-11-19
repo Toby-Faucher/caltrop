@@ -1,0 +1,67 @@
+id: no-swallowed-error-ts
+language: typescript
+severity: error
+message: "Do not discard an error in a test. Let it fail the test, or assert which error you expect (`rejects.toThrow(X)`). Cleanup that may fail belongs in `afterEach` or a fixture's teardown."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  # Best-effort cleanup: closing, killing or deleting something that may already be gone.
+  cleanup-call:
+    kind: call_expression
+    has: { field: function, regex: '(^|\.)(close|kill|killpg|rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync|chmod|terminate|destroy|dispose|disconnect|quit|stop)$' }
+rule:
+  all:
+    - any:
+        # catch {} / catch (e) {}, comments only counts as empty.
+        - kind: catch_clause
+          has:
+            field: body
+            regex: '^\{(\s|//[^\n]*|(?s:/\*.*?\*/))*\}$'
+          inside:
+            kind: try_statement
+            all:
+              # The try awaits something: the call under test. Sync setup (`try { git('merge') } catch {}`) is skipped.
+              - has: { field: body, has: { stopBy: { any: [ { kind: arrow_function }, { kind: function_expression } ] }, kind: await_expression } }
+              # try { await child.kill() } catch {}: the try only cleans up.
+              - not:
+                  has:
+                    field: body
+                    regex: '^\{\s*([^;{}]*\b(close|kill|killpg|rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync|chmod|terminate|destroy|dispose|disconnect|quit|stop)\([^;{}]*\)\s*;?\s*)+\}$'
+        # await f().catch(() => {}), .catch(() => undefined), .catch(noop) as a statement: the result is discarded.
+        - kind: call_expression
+          inside: { kind: await_expression, inside: { kind: expression_statement } }
+          all:
+            - has:
+                field: function
+                kind: member_expression
+                all:
+                  - has: { field: property, regex: '^catch$' }
+                  - not: { has: { field: object, matches: cleanup-call } }
+            - has:
+                field: arguments
+                all:
+                  - not: { has: { nthChild: 2 } }
+                  - has:
+                      nthChild: 1
+                      regex: '^((async\s+)?(\(\s*\w*\s*(:\s*\w+)?\s*\)|\w+)\s*=>\s*(\{\s*\}|undefined|null|void 0)|(async\s+)?function\s*\w*\s*\(\s*\w*\s*\)\s*\{\s*\}|noop|_\.noop)$'
+    # Only inside a test; helpers and custom e2e scripts often catch on purpose.
+    - inside:
+        stopBy: end
+        kind: call_expression
+        has: { field: function, regex: '^(it|test|specify)(\.\w+)*$' }
+    # Cleanup contexts: a finally block, a before/after hook, a Playwright fixture after `await use(..)`.
+    - not: { inside: { stopBy: end, kind: finally_clause } }
+    - not:
+        inside:
+          stopBy: end
+          kind: call_expression
+          has: { field: function, regex: '(^|\.)(after|before)(Each|All)$' }
+    - not:
+        inside:
+          stopBy: end
+          follows: { stopBy: end, regex: '^await\s+use\(' }

@@ -1,0 +1,34 @@
+id: no-swallowed-error-ts
+valid:
+  # The catch does something with the error.
+  - "it('x', async () => { try { await f(); } catch (e) { expect(e).toBeInstanceOf(NotFound); } });"
+  - "it('x', async () => { await f().catch((e) => errors.push(e)); expect(errors).toHaveLength(1); });"
+  # The result is used: a fallback value, not a discarded error.
+  - "it('x', async () => { const body = await r.json().catch(() => null); expect(body).toBeNull(); });"
+  # Not awaited: marks a promise as handled; the test awaits it later.
+  - "it('x', async () => { const p = api.quit(); p.catch(() => {}); await expect(p).rejects.toThrow('timed out'); });"
+  # Sync setup in the try, such as a git merge that is meant to conflict.
+  - "it('x', () => { try { git('merge', 'main'); } catch { /* conflict expected */ } expect(status()).toBe('conflict'); });"
+  # Best-effort cleanup.
+  - "it('x', async () => { try { await run(); } finally { await rm(dir, { recursive: true }).catch(() => {}); try { await server.close(); } catch {} } });"
+  - "it('x', async () => { await child.kill().catch(() => {}); try { await page.close(); } catch {} });"
+  - "afterEach(async () => { await browser.close().catch(() => {}); });"
+  - "test.afterEach(async () => { try { await resetDb(); } catch {} });"
+  - "export const test = base.extend({ page: async ({ page }, use) => { await use(page); await resetDb().catch(() => {}); } });"
+  # Outside a test: a helper or an e2e script without it/test.
+  - "async function stopAll() { await b.close().catch(() => {}); try { await f(); } catch {} }"
+  - "await page.getByRole('button').click().catch(() => {});"
+  # Not an empty handler.
+  - "it('x', async () => { await f().catch(() => fallback()); });"
+invalid:
+  - "it('x', async () => { await api.games().catch(() => {}); expect(f.mock.calls).toHaveLength(1); });"
+  - "it('x', async () => { await run(args).catch(() => undefined); expect(log).toHaveBeenCalled(); });"
+  - "test('x', async () => { await run().catch(noop); });"
+  - "it('x', async () => { await run().catch(function () {}); });"
+  - "it('x', async () => { await run().catch((_e: unknown) => null); });"
+  - "it('x', async () => { try { await dispatch(p); } catch { /* expected */ } expect(m).toHaveBeenCalled(); });"
+  - "it('x', async () => { try { await dispatch(p); } catch (e) {\n  // we only care that the envelope was emitted\n} });"
+  - "it('x', async () => { for (const c of cases) { try { await run(c); } catch {} } expect(timers.size).toBe(0); });"
+  - "test('x', async () => { await withTempDir(async (dir) => { await upsert(dir).catch(() => {}); }); });"
+  # A fail() inside the try is swallowed by the empty catch too.
+  - "it('x', async () => { try { await f(); assert.fail('no error'); } catch {} });"

@@ -1,0 +1,49 @@
+id: no-swallowed-error-py
+language: python
+severity: error
+message: "Do not discard an error in a test. Let it fail the test, or assert which error you expect (`pytest.raises(X)`). Cleanup that may fail belongs in a fixture's teardown or `addCleanup`."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  # The guarded block only does best-effort cleanup: closing, killing or deleting something that may already be gone.
+  cleanup-only:
+    kind: block
+    regex: '^(\s*[\w.\[\]()"'' ]*\b(close|kill|killpg|terminate|unlink|remove|rmtree|rmdir|shutdown|stop|cancel|disconnect|quit|wait|waitpid|join)\([^\n]*\)\s*)+$'
+rule:
+  all:
+    - any:
+        # except ..: pass / ... (comments around it count as empty). `continue` is left out: it skips bad input in parse and retry loops.
+        - kind: except_clause
+          has:
+            kind: block
+            regex: '^(#[^\n]*\s*)*(pass|\.\.\.)(\s*#[^\n]*)*$'
+          not:
+            any:
+              - inside: { kind: try_statement, has: { field: body, matches: cleanup-only } }
+              # try: f(); raise AssertionError(..) / except Refused: pass is a hand-written pytest.raises,
+              # unless the handler is broad enough to catch the AssertionError itself.
+              - all:
+                  - inside:
+                      kind: try_statement
+                      has:
+                        field: body
+                        has:
+                          nthChild: { position: 1, reverse: true }
+                          regex: '^(raise\s+AssertionError\b|(self|pytest)\.fail\(|assert\s+False\b)'
+                  - not: { regex: '^except\s*(:|\(?\s*(builtins\.)?(Exception|BaseException|AssertionError)\b)' }
+        # with suppress(..): / with contextlib.suppress(..):
+        - kind: call
+          has: { field: function, regex: '^(contextlib\.)?suppress$' }
+          inside:
+            kind: with_item
+            inside:
+              kind: with_clause
+              not: { inside: { kind: with_statement, has: { field: body, matches: cleanup-only } } }
+    # Only directly in a test_* function: helpers, parse loops in harness code and thread workers catch on purpose.
+    - matches: py-in-test-fn
+    # Cleanup in a finally block. tearDown, fixtures (code after `yield`) and addCleanup callbacks are not test_* functions.
+    - not: { inside: { stopBy: end, kind: finally_clause } }
