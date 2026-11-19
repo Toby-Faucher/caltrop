@@ -1,0 +1,20 @@
+id: no-weak-result-assert.catch-ts
+valid:
+  - "it('x', () => { expect(() => f()).toThrow(Forbidden); });"
+  - "it('x', () => { try { f(); throw new Error('no throw'); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "it('x', () => { try { f(); expect.unreachable(); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('forbidden'); } expect(log).toEqual([]); });"
+  - "it('x', () => { let err; try { f(); } catch (e) { err = e; expect(e).toBeInstanceOf(Forbidden); } expect(err).toBeDefined(); });"
+  - "it('x', () => { expect.assertions(1); try { f(); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "it('x', async () => { expect.hasAssertions(); try { await f(); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "it('x', () => { try { f(); } catch (e) { expect(e).toBeTruthy(); throw e; } });"
+  - "it('x', () => { const code = (o) => { try { f(o); } catch (e) { expect(e).toBeTruthy(); return e.code; } }; expect(code(1)).toBe('x'); });"
+  - "it('x', () => { try { f(); } catch (e) { log(e); } });"
+  - "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('x'); } finally { expect(spy).toHaveBeenCalled(); } });"
+  - "function helper() { try { f(); } catch (e) { expect(e.code).toBe('forbidden'); } }"
+invalid:
+  - "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('forbidden'); } });"
+  - "test('x', async () => { try { await f(); } catch (err) { expect(err).toBeInstanceOf(Forbidden); expect(err.message).toMatch(/denied/); } });"
+  - "it('x', async function () { const s = await setup(); try { await s.run(); } catch (e: any) { assert.equal(e.code, 'E1'); } });"
+  - "describe('d', () => { it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('forbidden'); } }); });"
+  - "it('x', () => { try { f(); } catch { expect(true).toBe(true); } cleanup(); });"

@@ -1,0 +1,41 @@
+# Generated from rules/ts/no-weak-result-assert.catch-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-weak-result-assert.catch-tsx
+language: tsx
+severity: error
+message: "The catch only runs if something throws, so this test passes when nothing does. Use `expect(() => f()).toThrow(X)` or `await expect(p).rejects.toThrow(X)`."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  assertion:
+    kind: call_expression
+    has: { field: function, regex: '^(expect|assert|fail)(\.\w+)*$' }
+  # What makes the test fail when nothing throws: an assertion, or a throw after the call.
+  checks:
+    any:
+      - matches: assertion
+      - kind: throw_statement
+rule:
+  kind: try_statement
+  all:
+    - matches: tsx-in-test-body
+    - has:
+        field: handler
+        all:
+          - has: { stopBy: end, matches: assertion }
+          # A catch that rethrows or returns is a helper, not the check.
+          - not: { has: { stopBy: end, any: [ { kind: throw_statement }, { kind: return_statement } ] } }
+    - not: { has: { field: body, has: { stopBy: end, matches: checks } } }
+    - not: { has: { field: finalizer, has: { stopBy: end, matches: assertion } } }
+    # Nothing after the try checks the outcome.
+    - not: { precedes: { stopBy: end, any: [ { matches: checks }, { has: { stopBy: end, matches: checks } } ] } }
+    # expect.assertions(n) / expect.hasAssertions() make the test fail when the catch is skipped.
+    - not:
+        inside:
+          stopBy: end
+          any: [ { kind: arrow_function }, { kind: function_expression } ]
+          has: { stopBy: end, kind: member_expression, regex: '^expect\.(assertions|hasAssertions)$' }

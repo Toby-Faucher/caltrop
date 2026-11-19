@@ -155,7 +155,7 @@ Each entry is a rule id, a file, and the number of hits allowed there. The count
 
 ## Rules
 
-Rule ids are stable. They key the allowlist. Each language has its own rule files, but a rule that means the same thing in every language shares one id: a Python sleep and a Rust sleep both count under `no-fixed-sleep`. The rule files carry a language suffix (`no-fixed-sleep-py.yml`, `no-test-swap-ts.yml`) that `caltrop` strips.
+Rule ids are stable. They key the allowlist. Each language has its own rule files, but a rule that means the same thing in every language shares one id: a Python sleep and a Rust sleep both count under `no-fixed-sleep`. The rule files carry a language suffix (`no-fixed-sleep-py.yml`, `no-test-swap-ts.yml`) that `caltrop` strips. A case that needs its own message gets its own file with a dotted variant (`no-weak-result-assert.catch-ts.yml`), which is stripped too.
 
 ### Rust
 
@@ -201,6 +201,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 | `no-coverage-pragma` | A comment that coverage.py reads as an exclusion (its default `# pragma: no cover` and `# pragma: no branch` regexes), in any file. Skipped where coverage.py already excludes the line, so the pragma changes nothing: `if TYPE_CHECKING:` and a stub whose body is only `...` (a `Protocol` method). | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 | `no-source-text-test` | In test code: `inspect.getsource(..)`/`getsourcelines(..)`; `open(..)` (not for writing) or `.read_text()`/`.read_bytes()` whose call names a `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.svelte`, `.vue` or `.rs` file in a string literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text passed to `exec`/`compile`/`eval` or copied with `.write_text(..)`; hash pins (`hashlib`, `sha*`, `*digest`); `getsource(a) == getsource(b)` parity checks. | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file or `inspect.getsource` passes whatever the code does at run time. |
 | `no-swallowed-error` | Directly in a `test*` function: `except ..: pass` or `...` (comments allowed), and `with suppress(..)`/`contextlib.suppress(..)`. Skipped: a handler inside `finally`, a `try` or `with` body that only cleans up (`close`, `kill`, `terminate`, `unlink`, `remove`, `rmtree`, `stop` and similar), and a `try` that ends in `raise AssertionError`/`self.fail`/`pytest.fail`/`assert False` with a handler narrower than `Exception`. | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`pytest.raises(X)`). Cleanup that may fail belongs in a fixture's teardown or `addCleanup`. |
+| `no-weak-result-assert` | A `with pytest.raises(..)`/`raises(..)`/`self.assertRaises(Regex)(..)` body with more than one statement, or one `if`/`while`/`for`/`try`/`match`/`with` (ruff PT012). Allowed, as in PT012: a `def` or `class`, a `for` whose body is only `pass` or `...`, a nested `with` around one simple statement. | Put only the call that should raise inside `pytest.raises`. Do the setup before it and the asserts after it: the error may come from the setup, and nothing after the raising line runs. |
 
 </details>
 
@@ -229,6 +230,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-coverage-pragma` | In any file, including a `.svelte` `<script>` (both langs) and JSX: `istanbul ignore next/if/else/file`, `c8`/`v8 ignore next/if/else/file/start`, `node:coverage ignore next`/`disable`, as `//` or `/* */`. A `start`/`stop` or `disable`/`enable` pair counts once. | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 | `no-source-text-test` | In test code: `readFileSync`/`readFile` (`fs.`, `fs.promises.`, `fsp.` too) whose arguments name a `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.mts`, `.cts`, `.svelte`, `.vue`, `.py` or `.rs` file in a string, template or `new URL(..)` literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text run by `vm.runIn*Context`, `new vm.Script`, `new Function` or `eval`, directly or through a `const` in the same block; hash pins (`.update(readFileSync(..))`). | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file passes whatever the code does at run time. |
 | `no-swallowed-error` | Inside an `it`/`test`/`specify` callback: `await f().catch(..)` as a statement with an empty handler (`() => {}`, `() => undefined`/`null`/`void 0`, `function () {}`, `noop`); an empty `catch {}`/`catch (e) {}` (comments allowed) whose `try` awaits something. Skipped: a used result (`const b = await r.json().catch(() => null)`), a `.catch` that is not awaited, a sync `try`, `finally` blocks, before/after hooks, Playwright fixture code after `await use(..)`, and best-effort cleanup (`close`, `kill`, `rm`, `unlink`, `chmod`, `destroy`, `dispose`, `stop` and similar). | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`rejects.toThrow(X)`). Cleanup that may fail belongs in `afterEach` or a fixture's teardown. |
+| `no-weak-result-assert` | A `try` in an `it`/`test` callback (not in a nested function) whose `catch` has the only `expect`/`assert` calls: the `try` block has no assertion or `throw`, the `catch` does not `throw` or `return`, nothing after the `try` asserts or throws, and the test has no `expect.assertions(n)`/`expect.hasAssertions()`. | The catch only runs if something throws, so this test passes when nothing does. Use `expect(() => f()).toThrow(X)` or `await expect(p).rejects.toThrow(X)`. |
 
 </details>
 
@@ -252,7 +254,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>20 Python limits</summary>
+<details><summary>22 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -265,6 +267,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - FastAPI `app.dependency_overrides[..] = ..` is not flagged: it passes a dependency in, it does not patch one. What it passes in is still checked (a `Fake*` class is reported by `no-fake-impls`).
 - `@pytest.mark.skipif` on the interpreter or platform (`sys.version_info < (3, 11)`, `sys.platform == "win32"`) is reported like any other skip. Allowlist it if your CI matrix runs the test elsewhere.
 - The `as e` exemption in `no-weak-result-assert` accepts any later read of `e.value`, including one that asserts nothing.
+- The `pytest.raises` body check looks one `with` deep: a nested `with` whose body is itself one compound statement is allowed.
+- Tests whose only checks are presence checks (`assert x is not None`, `assert x`, `isinstance`) are not flagged. A draft rule hit 25 tests in food, MAL and CnesData once narrowed to `is not None`; 6 of a 16-test sample were tests where presence is the whole contract ("the claim is accepted", `find_spec(..) is not None`). Too noisy for a ratchet.
 - `no-silent-skip` only sees a `return` whose nearest enclosing function is named `test*`, not one in a helper the test calls.
 - Wall-clock timing asserts (`assert time.monotonic() - start < 1.0`) are not detected.
 - `no-constant-assert` only sees literal and self-compare forms. `assert x is x`, `self.assertEqual(x, x)`, `assert isinstance(x, object)` and `assert x == x` where `x` is a subscript (`c[0] == c[0]`) are not detected.
@@ -279,7 +283,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### TypeScript, JavaScript and Svelte
 
-<details><summary>17 TypeScript, JavaScript and Svelte limits</summary>
+<details><summary>19 TypeScript, JavaScript and Svelte limits</summary>
 
 - A `.svelte` `<script>` without `lang="ts"` is parsed as JavaScript, and only `no-test-swap` and `no-coverage-pragma` have a JavaScript copy (`*-js.yml`). Test files are `.ts`/`.js`, so the test rules still apply to them.
 - Any file under a `test/`, `tests/` or `e2e/` directory counts as test code, so a production route such as `src/routes/test/+page.svelte` is skipped by `no-test-swap`.
@@ -298,6 +302,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-conditional-assert` reports a deliberate implication too (`if (literal) expect(url).toContain(SEGMENT)`, where the other case is legal and checked elsewhere). Narrowing counts only when the earlier `expect(..)` has exactly a value from the condition: `expect(r).toMatchObject({ ok: true }); if (r.ok)` is skipped through `r`, but `expect(r.kind === 'x').toBe(true); if (r.kind === 'x')` is not.
 - `no-swallowed-error` only checks code inside an `it`/`test` callback and only an awaited `.catch(..)` or a `try` that awaits. It misses a swallowed sync call (`try { parse(x) } catch {}`), a floating `void f().catch(() => {})`, helpers outside the test, and e2e scripts that do not use `it`/`test`.
 - `no-swallowed-error` flags `await p.catch(() => null)` on a promise the test already checked, and a `.catch(() => {})` in a mock implementation inside a test that imitates a retry. Allowlist those.
+- The catch-only check in `no-weak-result-assert` sees `try`/`catch`, not `.catch(e => expect(..))` on a promise, and not a `try` inside a helper the test calls.
+- Tests whose only checks are `toBeTruthy()`, `toBeDefined()`, `not.toBeNull()` or `not.toBeUndefined()` are not flagged. A draft rule that skipped Testing Library `getBy*`/`findBy*`/`queryBy*` and `querySelector` subjects still hit 57 tests in food, evia-manager and claude-orchestrator, and 6 of a 15-test sample were fine: presence was the contract ("rows are not swept", "each category is accepted") or a helper did the asserting.
 
 </details>
 

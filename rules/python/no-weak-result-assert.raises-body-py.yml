@@ -1,0 +1,66 @@
+id: no-weak-result-assert.raises-body-py
+language: python
+severity: error
+message: "Put only the call that should raise inside `pytest.raises`. Do the setup before it and the asserts after it: the error may come from the setup, and nothing after the raising line runs."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+# ruff PT012: the body must be one simple statement. Allowed, as in ruff: a def or class (to test a decorator),
+# a `for` whose body is only `pass` or `...` (to test an iterator), and a nested `with` around one simple statement.
+utils:
+  second-stmt:
+    has: { nthChild: { position: 2, ofRule: { not: { kind: comment } } } }
+  compound:
+    any:
+      - kind: if_statement
+      - kind: while_statement
+      - kind: try_statement
+      - kind: match_statement
+      - kind: with_statement
+      - kind: for_statement
+  empty-for:
+    kind: for_statement
+    has:
+      field: body
+      not: { matches: second-stmt }
+      has:
+        nthChild: { position: 1, ofRule: { not: { kind: comment } } }
+        any:
+          - kind: pass_statement
+          - { kind: expression_statement, regex: '^\.\.\.$' }
+  simple-with:
+    kind: with_statement
+    has:
+      field: body
+      not: { matches: second-stmt }
+      has:
+        nthChild: { position: 1, ofRule: { not: { kind: comment } } }
+        not: { matches: compound }
+rule:
+  kind: with_statement
+  all:
+    - has:
+        kind: with_clause
+        has:
+          kind: with_item
+          has:
+            # `pytest.raises(..) as e` puts the call inside an as_pattern.
+            stopBy: { not: { any: [ { kind: with_item }, { kind: as_pattern } ] } }
+            kind: call
+            has:
+              field: function
+              regex: '^(pytest\.)?raises$|^self\.assertRaises(Regex)?$'
+    - has:
+        field: body
+        any:
+          - matches: second-stmt
+          - has:
+              nthChild: { position: 1, ofRule: { not: { kind: comment } } }
+              matches: compound
+              not:
+                any:
+                  - matches: empty-for
+                  - matches: simple-with

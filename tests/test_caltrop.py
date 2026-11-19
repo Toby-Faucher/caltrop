@@ -358,6 +358,27 @@ class CaltropTest(Fixture):
         self.assertEqual(mod.gh_escape("100%\r\na: b, c"), "100%25%0D%0Aa: b, c")
         self.assertEqual(mod.gh_escape("100%\r\na: b, c", True), "100%25%0D%0Aa%3A b%2C c")
 
+    def test_base_id_drops_variant(self):
+        loader = importlib.machinery.SourceFileLoader("caltrop", SCRIPT)
+        mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("caltrop", loader))
+        loader.exec_module(mod)
+        for rule_id in ("no-weak-result-assert-ts", "no-weak-result-assert.catch-tsx",
+                        "no-weak-result-assert.raises-body-py"):
+            self.assertEqual(mod.base_id(rule_id), "no-weak-result-assert", rule_id)
+        self.assertEqual(mod.base_id("no-fixed-sleep-tests-dir"), "no-fixed-sleep")
+
+    def test_weak_assert_variants_share_id(self):
+        self.write("tests/test_a.py", "def test_a():\n    with pytest.raises(ValueError):\n        x = f()\n        g(x)\n")
+        self.write("src/a.test.ts", "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('x'); } });\n")
+        r = self.check()
+        self.assertIn("tests/test_a.py:2: no-weak-result-assert: Put only the call", r.stdout)
+        self.assertIn("src/a.test.ts:1: no-weak-result-assert: The catch only runs", r.stdout)
+        self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
+        toml = (self.repo / "caltrop.toml").read_text()
+        self.assertIn("[allow.no-weak-result-assert]", toml)
+        self.assertNotIn("assert.", toml)
+        self.assertEqual(self.check().returncode, 0)
+
     def test_bad_format(self):
         for args in (["--format", "json"], ["--format"], ["--format", "github", "x", "y"]):
             r = run("check", *args)
