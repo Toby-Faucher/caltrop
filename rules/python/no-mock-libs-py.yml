@@ -2,6 +2,26 @@ id: no-mock-libs-py
 language: python
 severity: error
 message: "Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine."
+utils:
+  # A number, plain string, bool, None, or a tuple/list/set/dict built only from those.
+  literal:
+    any:
+      - { kind: integer }
+      - { kind: float }
+      - { kind: string }
+      - { kind: concatenated_string }
+      - { kind: 'true' }
+      - { kind: 'false' }
+      - { kind: none }
+      - { kind: unary_operator }
+      - { kind: tuple }
+      - { kind: list }
+      - { kind: set }
+      - { kind: dictionary }
+    not:
+      has:
+        stopBy: end
+        any: [ { kind: identifier }, { kind: interpolation }, { kind: lambda } ]
 rule:
   any:
     - kind: import_statement
@@ -31,3 +51,15 @@ rule:
       has:
         field: function
         regex: '^monkeypatch\.setattr$'
+      # Setting an ALL_CAPS module constant to a literal is configuration, like setenv:
+      # setattr(mod, "LIMIT", 3) or setattr("pkg.mod.LIMIT", 3).
+      not:
+        has:
+          field: arguments
+          any:
+            - all:
+                - has: { nthChild: 2, kind: string, regex: '^[rRuU]?["''][A-Z][A-Z0-9_]*["'']$' }
+                - has: { nthChild: 3, matches: literal }
+            - all:
+                - has: { nthChild: 1, kind: string, regex: '^[rRuU]?["''][\w.]+\.[A-Z][A-Z0-9_]*["'']$' }
+                - has: { nthChild: 2, matches: literal }
