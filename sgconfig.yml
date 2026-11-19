@@ -9,3 +9,5 @@ languageGlobs:
   html: ["*.svelte"]
   # TypeScript's grammar parses plain JavaScript, so one rule set covers both.
   typescript: ["*.js", "*.mjs", "*.cjs", "*.mts", "*.cts"]
+  # .tsx is tsx by default; rules/tsx/ are generated copies of rules/ts/ (scripts/gen-tsx.py).
+  tsx: ["*.jsx"]

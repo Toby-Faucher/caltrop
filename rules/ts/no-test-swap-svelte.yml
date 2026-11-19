@@ -1,0 +1,19 @@
+id: no-test-swap-svelte
+language: html
+severity: error
+message: "Production code must behave the same under test. Pass the dependency in (a parameter, a context, a constructor argument) and give the test a real one. `dev`/`DEV`/`PROD` are fine; they are not test switches."
+# Svelte template logic ({#if ..}, {expr}, attr={..}); <script> is raw_text here and is checked by no-test-swap-ts/-js.
+# shortcut: one hit per text node, so two test checks between the same tags count once; split them if that bites.
+files:
+  - "**/*.svelte"
+ignores:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+  - "**/__mocks__/**"
+rule:
+  any: [ { kind: text }, { kind: attribute_value } ]
+  regex: '\{[^{}]*((import\.meta\.env|process\.env)\.(VITEST|VITEST_WORKER_ID|JEST_WORKER_ID)\b|(import\.meta\.env\.MODE|process\.env\.NODE_ENV)\s*[!=]==?\s*[''"`]test[''"`]|[''"`]test[''"`]\s*[!=]==?\s*(import\.meta\.env\.MODE|process\.env\.NODE_ENV))'

@@ -1,0 +1,12 @@
+# Generated from utils/ts/ts-in-fake-timer-file.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: tsx-in-fake-timer-file
+language: tsx
+# shortcut: file-level, so a real sleep in a file where any test fakes timers is missed; scope to the test callback if that bites.
+rule:
+  inside:
+    kind: program
+    stopBy: end
+    has:
+      stopBy: end
+      kind: call_expression
+      has: { field: function, regex: '^(vi|jest)\.useFakeTimers$' }

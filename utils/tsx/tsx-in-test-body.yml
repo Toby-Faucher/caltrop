@@ -1,0 +1,20 @@
+# Generated from utils/ts/ts-in-test-body.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: tsx-in-test-body
+language: tsx
+# Directly inside the body of a test callback, it('..', () => { here }); nested functions do not count.
+rule:
+  inside:
+    stopBy:
+      any:
+        - kind: arrow_function
+        - kind: function_expression
+        - kind: function_declaration
+        - kind: method_definition
+    any: [ { kind: arrow_function }, { kind: function_expression } ]
+    inside:
+      kind: arguments
+      inside:
+        kind: call_expression
+        has:
+          field: function
+          regex: '^(it|test|specify)(\.\w+)*$'

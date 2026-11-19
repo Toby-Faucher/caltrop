@@ -22,6 +22,8 @@ valid:
   - "vi.useFakeTimers(); const p = new Promise((r) => setTimeout(r, 1000)); vi.advanceTimersByTime(1000); await p;"
   - "beforeEach(() => { vi.useFakeTimers(); }); it('x', async () => { const p = sleep(500); await vi.advanceTimersByTimeAsync(500); await p; });"
   - "jest.useFakeTimers(); it('x', async () => { const p = delay(ms); jest.advanceTimersByTime(ms); await p; });"
+  - "await Promise.race([it.next(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 100))]);"
+  - "await Promise.race([done, new Promise((_, rej) => { setTimeout(() => { rej(new Error('timeout')); }, ms); })]);"
 invalid:
   - "await new Promise(r => setTimeout(r, 5));"
   - "await new Promise((r) => setTimeout(r, 150));"
@@ -42,3 +44,5 @@ invalid:
   - "it('x', async () => { for (const n of ns) { pool.run(async () => { await sleep(5); }); } });"
   - "await mapPool(xs, 3, async (n) => { await new Promise((r) => setTimeout(r, 5)); return n; });"
   - "vi.useRealTimers(); await sleep(100);"
+  - "await new Promise((resolve, reject) => setTimeout(() => resolve(), 10));"
+  - "await new Promise((resolve, reject) => { setTimeout(() => { if (v instanceof Error) reject(v); else resolve(v); }, ms); });"

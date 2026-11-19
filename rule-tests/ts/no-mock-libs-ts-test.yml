@@ -15,6 +15,10 @@ valid:
   - "import { mock } from './mock-data';"
   - "server.mock('GET', '/x');"
   - "vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (opts) { seen.push(this); realFocus.call(this, opts); });"
+  - "const spy = vi.spyOn(obj, 'm'); obj.m(); expect(spy).toHaveBeenCalled(); spy.mockRestore();"
+  - "const err = vi.spyOn(console, 'error'); err.mockImplementation(() => {});"
+  - "it('a', () => { const spy = vi.spyOn(a, 'x'); expect(spy).toHaveBeenCalled(); }); it('b', () => { spy.mockReturnValue(1); });"
+  - "const spy = vi.spyOn(el, 'focus'); spy.mockImplementation(function (o) { return orig.call(this, o); });"
 invalid:
   - "vi.mock('$app/navigation', () => ({ goto: vi.fn() }));"
   - "vi.doMock('$env/dynamic/private', () => ({ env: {} }));"
@@ -32,3 +36,5 @@ invalid:
   - "import { mock } from 'vitest-mock-extended';"
   - "import fetchMock from 'fetch-mock';"
   - "import * as td from 'testdouble';"
+  - "const spy = vi.spyOn(api, 'load'); spy.mockResolvedValue([]);"
+  - "it('x', () => { let now = jest.spyOn(Date, 'now'); now.mockReturnValueOnce(0); now.mockReturnValueOnce(1); });"
