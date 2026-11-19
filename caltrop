@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """caltrop: keep AI-written Rust, Python and TypeScript/Svelte tests honest. See README.md."""
+import ast
 import configparser
 import json
 import re
@@ -17,12 +18,17 @@ SGCONFIG = HERE / "sgconfig.yml"
 def base_id(rule_id):
     # Per-language and per-scope variants (no-fixed-sleep-py-tests-dir) share one allowlist id, and so do
     # cases that need their own message (no-weak-result-assert.catch-ts): the part after the dot is dropped.
-    return re.sub(r"(-py|-tsx|-ts|-js|-svelte)?(-tests-dir)?$", "", rule_id.split(".")[0])
+    return re.sub(r"(-py|-tsx|-ts|-js|-json|-svelte)?(-tests-dir)?$", "", rule_id.split(".")[0])
 
 
-RULES = {base_id(m[1]) for f in (HERE / "rules").rglob("*.yml")
-         for m in [re.search(r"^id:\s*(\S+)", f.read_text(), re.M)] if m} | {"no-test-retries"}
+# assert-helper is not reported: it feeds the no-assertion-free-test filter in scan().
+RULES = ({base_id(m[1]) for f in (HERE / "rules").rglob("*.yml")
+          for m in [re.search(r"^id:\s*(\S+)", f.read_text(), re.M)] if m} | {"no-test-retries"}) - {"assert-helper"}
 RETRY_MSG = "Make the test deterministic; a retry hides the flake."
+FILTER_MSG = ("Run the whole suite in CI. Fix or delete the test you are filtering out, "
+              "and let a run that finds no tests fail.")
+# Keep in step with the `asserts` util in rules/python/no-assertion-free-test-py.yml.
+ASSERT_CALL = re.compile(r"_*(assert|expect|fail|raises|warns|deprecated_call)", re.I)
 # Config file -> the section pytest reads its options from.
 PYTEST_CONFIGS = {"pytest.ini": "pytest", "tox.ini": "pytest", "setup.cfg": "tool:pytest"}
 SKIP_DIRS = {"vendor", "node_modules", "site-packages"}
@@ -57,15 +63,62 @@ def scan(repo):
     # ast-grep exits 1 when it finds error-level hits, so judge by output, not exit code.
     if p.returncode and not p.stdout.strip():
         die(f"ast-grep failed ({p.stderr.strip()}); {INSTALL}")
-    hits = {}
+    hits, calls, helpers = {}, {}, set()
     try:
         for line in p.stdout.splitlines():
             h = json.loads(line)
             rule = base_id(h["ruleId"])
-            hits[(rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])] = h["message"]
+            if rule == "assert-helper":
+                helpers.add(h["metaVariables"]["single"]["NAME"]["text"])
+                continue
+            key = (rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])
+            hits[key] = h["message"]
+            if rule == "no-assertion-free-test":
+                # The first call is the test's own name (Python) or it/test (TS).
+                calls[key] = set(re.findall(r"(\w+)\s*\(", h["text"])[1:])
     except (ValueError, KeyError, TypeError, AttributeError):
         die("unexpected ast-grep output; check the ast-grep version. " + INSTALL)
+    if any(k[1].endswith(".py") for k in calls):
+        helpers |= py_assert_helpers(repo)
+    for key, names in calls.items():
+        if names & helpers:  # the test asserts through a helper
+            del hits[key]
     return hits
+
+
+def repo_files(repo, names=None):
+    # Files under repo, skipping dependency and hidden directories; names= keeps only those file names.
+    for path in sorted(repo.rglob("*")):
+        rel = path.relative_to(repo)
+        if (names is None or path.name in names) and path.is_file() and not any(
+                part in SKIP_DIRS or part.startswith(".") for part in rel.parts[:-1]):
+            yield path, rel
+
+
+def py_assert_helpers(repo):
+    # Names of functions in Python test code that assert, directly or through another such function.
+    # shortcut: matches by name across all test code, so a same-named helper elsewhere can hide a hit;
+    # resolve imports if users report misses.
+    fns = []
+    for path, rel in repo_files(repo):
+        if path.suffix != ".py" or not (re.match(r"test_|conftest\.py$", path.name) or path.name.endswith("_test.py")
+                                        or {"tests", "test"} & set(rel.parts[:-1])):
+            continue
+        try:
+            tree = ast.parse(path.read_bytes())
+        except (SyntaxError, ValueError, OSError):
+            continue  # newer syntax than this Python, or not Python; its helpers are not counted
+        for f in ast.walk(tree):
+            if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                nodes = list(ast.walk(f))
+                called = {getattr(n.func, "id", getattr(n.func, "attr", None)) for n in nodes if isinstance(n, ast.Call)}
+                direct = any(isinstance(n, (ast.Assert, ast.Raise)) for n in nodes) or any(
+                    ASSERT_CALL.match(c) for c in called if c)
+                fns.append((f.name, called, direct))
+    helpers = {name for name, _, direct in fns if direct}
+    while new := {name for name, called, _ in fns if called & helpers} - helpers:
+        helpers |= new
+    return helpers
 
 
 def retry_hits(repo):
@@ -112,21 +165,30 @@ def reruns(opts):
     return False
 
 
+def pytest_filter(opts):
+    # addopts that drop tests from every run: --deselect, --ignore, --ignore-glob, -k EXPR. -m is left alone:
+    # selecting by marker is how a suite is split into CI jobs.
+    tokens = shlex.split(opts) if isinstance(opts, str) else [str(t) for t in opts]
+    for t in tokens:
+        if t.split("=")[0] in ("--deselect", "--ignore", "--ignore-glob"):
+            return t.split("=")[0]
+        if t.startswith("-k"):
+            return "-k"
+    return None
+
+
 def option_line(text, key):
     # First uncommented line naming the option, for the report; the parse above decides the hit.
     for i, l in enumerate(text.splitlines(), 1):
-        if key in l and not l.lstrip().startswith(("#", ";")):
+        if re.search(rf"(?<![\w-]){re.escape(key)}", l) and not l.lstrip().startswith(("#", ";")):
             return i
     return 1
 
 
-def pytest_retry_hits(repo):
+def pytest_hits(repo):
+    # no-test-retries and no-test-filter in pytest config files.
     hits = {}
-    for path in sorted(repo.rglob("*")):
-        rel = path.relative_to(repo)
-        if path.name not in (*PYTEST_CONFIGS, "pyproject.toml") or not path.is_file() or any(
-                part in SKIP_DIRS or part.startswith(".") for part in rel.parts[:-1]):
-            continue
+    for path, rel in repo_files(repo, (*PYTEST_CONFIGS, "pyproject.toml")):
         text = path.read_text()
         try:
             if path.name == "pyproject.toml":
@@ -143,11 +205,13 @@ def pytest_retry_hits(repo):
             hits[("no-test-retries", rel.as_posix(), option_line(text, "--reruns"), 0)] = RETRY_MSG
         elif r.isdigit() and int(r) > 0:
             hits[("no-test-retries", rel.as_posix(), option_line(text, "reruns"), 0)] = RETRY_MSG
+        if flag := pytest_filter(opts.get("addopts", "")):
+            hits[("no-test-filter", rel.as_posix(), option_line(text, flag), 0)] = FILTER_MSG
     return hits
 
 
 def all_hits(repo):
-    return {**scan(repo), **retry_hits(repo), **pytest_retry_hits(repo)}
+    return {**scan(repo), **retry_hits(repo), **pytest_hits(repo)}
 
 
 def counts(hits):

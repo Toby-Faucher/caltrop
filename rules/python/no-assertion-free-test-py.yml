@@ -1,0 +1,30 @@
+id: no-assertion-free-test-py
+language: python
+severity: error
+message: "This test checks nothing. Assert on the result. If 'does not raise' is the point, say so with an explicit assertion."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  # Keep in step with ASSERT_CALL in caltrop, which finds helpers that assert.
+  asserts:
+    any:
+      - kind: assert_statement
+      - kind: raise_statement
+      - kind: call
+        has: { field: function, regex: '(^|\.)_*(?i:assert|expect|fail|raises|warns|deprecated_call)\w*$' }
+      # pytest-benchmark and pytest-memray tests measure; they are not meant to assert.
+      - kind: call
+        has: { field: function, regex: '^benchmark(\.\w+)?$' }
+      - kind: decorator
+        regex: 'mark\.limit_(memory|leaks)\b'
+rule:
+  kind: function_definition
+  all:
+    - has: { field: name, regex: '^test' }
+    - not: { inside: { kind: function_definition, stopBy: end } }
+    - not: { has: { stopBy: end, matches: asserts } }
+    - not: { inside: { kind: decorated_definition, has: { matches: asserts } } }
+# caltrop drops a hit whose test calls a function in Python test code that asserts (see ASSERT_CALL there).

@@ -189,6 +189,56 @@ class CaltropTest(Fixture):
         self.write("node_modules/x/pytest.ini", "[pytest]\nreruns = 1\n")
         self.assertEqual(self.check().returncode, 0, self.check().stdout)
 
+    def test_pytest_test_filter_in_config(self):
+        self.write("pyproject.toml", '[project]\nname = "my-kit"\n\n[tool.pytest.ini_options]\n'
+                   'addopts = [\n  "-q",\n  "-k",\n  "not slow",\n]\n')
+        self.write("pytest.ini", "[pytest]\n# addopts = --ignore=x\naddopts = -q --deselect tests/a.py::t\n")
+        self.write("setup.cfg", "[tool:pytest]\naddopts = --ignore-glob=*_live.py\n")
+        self.write("tox.ini", "[pytest]\naddopts = -m 'not slow' --strict-markers\n")
+        self.write("app/pyproject.toml", '[tool.pytest.ini_options]\naddopts = "-kfoo"\n')
+        r = self.check()
+        self.assertEqual(r.stdout.count("no-test-filter:"), 4, r.stdout)
+        for line in ("pyproject.toml:7:", "pytest.ini:3:", "setup.cfg:2:", "app/pyproject.toml:2:"):
+            self.assertIn(f"\n{line} no-test-filter:", "\n" + r.stdout)
+        self.assertNotIn("tox.ini", r.stdout)
+        self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
+        self.assertIn("[allow.no-test-filter]", (self.repo / "caltrop.toml").read_text())
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_js_test_filter(self):
+        self.write("package.json", '{\n  "scripts": {\n    "test": "vitest run --passWithNoTests"\n  }\n}\n')
+        self.write("vitest.config.ts", "export default defineConfig({\n  test: { passWithNoTests: true },\n});\n")
+        self.write("playwright.config.ts", "export default defineConfig({\n  testIgnore: '**/slow/**',\n});\n")
+        r = self.check()
+        for line in ("package.json:3:", "vitest.config.ts:2:", "playwright.config.ts:2:"):
+            self.assertIn(f"{line} no-test-filter:", r.stdout)
+        self.assertNotIn("-json", r.stdout)
+
+    def test_assertion_free_test(self):
+        self.write("tests/conftest.py", "def ok(r):\n    check(r)\n\ndef check(r):\n    assert r\n")
+        self.write("tests/helpers.py", "def refused(r):\n    assert r.status == 403\n")
+        self.write("tests/test_a.py", (
+            "def test_conftest_helper():\n    ok(f())\n\n"
+            "def test_other_module_helper():\n    refused(f())\n\n"
+            "def test_calls_a_test():\n    test_conftest_helper()\n\n"
+            "def test_same_name():\n    f()\n\n"
+            "def test_none():\n    f()\n"))
+        # A same-named test that asserts must not hide test_same_name above.
+        self.write("tests/test_b.py", "def test_same_name():\n    assert f()\n")
+        self.write("tests/test_bad.py", "def oops(:\n")
+        self.write("src/a.test.ts", ("const refused = (r) => expect(r.status).toBe(403);\n"
+                                     "it('uses a helper', () => { refused(f()); });\n"
+                                     "it('checks nothing', () => { f(); });\n"))
+        r = self.check()
+        hits = [line.split(": ")[0] for line in r.stdout.splitlines() if ": no-assertion-free-test:" in line]
+        self.assertEqual(hits, ["src/a.test.ts:3", "tests/test_a.py:10", "tests/test_a.py:13"], r.stdout)
+        self.assertNotIn("assert-helper", r.stdout)
+        self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
+        self.assertNotIn("assert-helper", (self.repo / "caltrop.toml").read_text())
+        self.assertEqual(self.check().returncode, 0)
+        self.write("caltrop.toml", '[allow.assert-helper]\n"src/a.test.ts" = 1\n')
+        self.assertIn("unknown rule in caltrop.toml: assert-helper", self.check().stdout)
+
     def test_python_and_svelte_share_rule_ids(self):
         self.write("tests/test_a.py", "import time\n\ndef test_x():\n    time.sleep(1)\n")
         self.write("src/A.svelte", '<script>\nif (import.meta.env.MODE === "test") x();\n</script>\n')

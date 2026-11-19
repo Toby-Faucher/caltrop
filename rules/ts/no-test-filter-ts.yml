@@ -1,0 +1,32 @@
+id: no-test-filter-ts
+language: typescript
+severity: error
+message: "Run the whole suite in CI. Fix or delete the test you are filtering out, and let a run that finds no tests fail."
+files:
+  - "**/vite*.config.*"
+  - "**/vitest.workspace.*"
+  - "**/jest*.config.*"
+  - "**/playwright*.config.*"
+utils:
+  config-call:
+    kind: call_expression
+    has: { field: function, regex: '^(defineConfig|defineProject|defineWorkspace|mergeConfig)$' }
+  default-export:
+    kind: export_statement
+    regex: '^export\s+default\b'
+rule:
+  kind: pair
+  any:
+    # Vitest `test: { passWithNoTests: true }` or a Jest config: an empty run passes.
+    - all:
+        - has: { field: key, regex: '^[''"]?passWithNoTests[''"]?$' }
+        - has: { field: value, kind: "true" }
+    # Playwright `testIgnore` at the top level drops specs from every run. In a `projects[]` entry it usually
+    # hands them to another project, so it is skipped there.
+    - all:
+        - has: { field: key, regex: '^[''"]?testIgnore[''"]?$' }
+        - inside:
+            kind: object
+            any:
+              - inside: { kind: arguments, inside: { matches: config-call } }
+              - inside: { matches: default-export }
