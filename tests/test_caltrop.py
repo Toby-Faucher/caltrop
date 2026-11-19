@@ -1,3 +1,5 @@
+import importlib.machinery
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -298,6 +300,43 @@ class CaltropTest(Fixture):
             r = self.check(env={**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"})
             self.assertEqual(r.returncode, 2, out)
             self.assertNotIn("Traceback", r.stderr)
+
+    def test_github_format_hit(self):
+        self.write("tests/a%,b:c.rs", SLEEP)
+        r = self.check()
+        self.assertIn("tests/a%,b:c.rs:2: no-fixed-sleep: ", r.stdout)
+        r = run("check", "--format", "github", str(self.repo))
+        self.assertEqual(r.returncode, 1)
+        first, last = r.stdout.splitlines()
+        self.assertRegex(first, r"^::error file=tests/a%25%2Cb%3Ac\.rs,line=2,col=5::no-fixed-sleep: \S")
+        self.assertEqual(last, "::error file=caltrop.toml::run caltrop baseline to adopt caltrop in this repo")
+
+    def test_github_format_allowance(self):
+        self.write("tests/a.rs", SLEEP)
+        self.write("caltrop.toml", '[allow.no-fixed-sleep]\n"tests/a.rs" = 2\n')
+        r = self.check()
+        self.assertEqual(r.stdout, "lower the allowance for no-fixed-sleep in tests/a.rs to 1\n"
+                                   "edit caltrop.toml as shown\n")
+        r = run("check", str(self.repo), "--format", "github")
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(r.stdout.splitlines(), [
+            "::error file=caltrop.toml::lower the allowance for no-fixed-sleep in tests/a.rs to 1",
+            "::error file=caltrop.toml::edit caltrop.toml as shown"])
+        self.assertEqual(run("check", "--format", "text", str(self.repo)).stdout, self.check().stdout)
+
+    def test_github_escape(self):
+        loader = importlib.machinery.SourceFileLoader("caltrop", SCRIPT)
+        mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("caltrop", loader))
+        loader.exec_module(mod)
+        self.assertEqual(mod.gh_escape("100%\r\na: b, c"), "100%25%0D%0Aa: b, c")
+        self.assertEqual(mod.gh_escape("100%\r\na: b, c", True), "100%25%0D%0Aa%3A b%2C c")
+
+    def test_bad_format(self):
+        for args in (["--format", "json"], ["--format"], ["--format", "github", "x", "y"]):
+            r = run("check", *args)
+            self.assertEqual(r.returncode, 2, args)
+            self.assertIn("usage:", r.stderr)
+        self.assertEqual(run("baseline", "--format", "github").returncode, 2)
 
 
 if __name__ == "__main__":
