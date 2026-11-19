@@ -1,0 +1,15 @@
+id: no-test-swap-svelte
+valid:
+  - "{#if import.meta.env.DEV}<p>dev</p>{/if}"
+  - "{#if dev}<Debug />{/if}"
+  - "{#if import.meta.env.MODE === 'testing-ground'}<p>x</p>{/if}"
+  - "<p>Set process.env.VITEST to run the tests.</p>"
+  - "<script>if (import.meta.env.MODE === 'test') x = 1;</script>"
+  - "<p class={import.meta.env.PROD ? 'a' : 'b'}>x</p>"
+invalid:
+  - "{#if import.meta.env.MODE === 'test'}<Fake />{:else}<Real />{/if}"
+  - "<div>{#if process.env.NODE_ENV !== \"test\"}<Analytics />{/if}</div>"
+  - "{:else if 'test' == import.meta.env.MODE}"
+  - "{#if !import.meta.env.VITEST}<Map />{/if}"
+  - "<p class={import.meta.env.VITEST ? 'a' : 'b'}>x</p>"
+  - "<p>{process.env.JEST_WORKER_ID ? 'test' : 'live'}</p>"

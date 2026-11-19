@@ -52,6 +52,17 @@ rule:
         # The helper's own definition is not a wait; its call sites are.
         - not:
             inside: { stopBy: end, matches: sleep-helper }
+        # A timer that only calls the executor's reject is a timeout guard (Promise.race), not a wait.
+        - not:
+            has:
+              field: arguments
+              has:
+                nthChild: 1
+                all:
+                  - has: { field: parameters, has: { nthChild: 1, has: { field: pattern, pattern: $RES } } }
+                  - has: { field: parameters, has: { nthChild: 2, has: { field: pattern, pattern: $REJ } } }
+                  - has: { stopBy: end, kind: call_expression, has: { field: function, pattern: $REJ } }
+                  - not: { has: { stopBy: end, kind: call_expression, has: { field: function, pattern: $RES } } }
     - kind: call_expression
       all:
         - has: { field: function, matches: helper-name }

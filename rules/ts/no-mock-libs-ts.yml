@@ -38,6 +38,33 @@ rule:
       # A pass-through that records and calls the original (orig.call(this, ..)) swaps nothing.
       not:
         has: { field: arguments, regex: '\.(call|apply)\(\s*this\b' }
+    # const s = vi.spyOn(o, 'm'); s.mockReturnValue(..) in the same block: the declaration, once per spy.
+    - kind: variable_declarator
+      all:
+        - has: { field: name, pattern: $SPY }
+        - has:
+            field: value
+            kind: call_expression
+            all:
+              - has: { field: function, regex: '^(vi|jest)\.spyOn$' }
+              - not: { has: { field: arguments, has: { nthChild: 1, regex: '^console$' } } }
+        - inside:
+            kind: lexical_declaration
+            inside:
+              any: [ { kind: statement_block }, { kind: program } ]
+              has:
+                stopBy: end
+                kind: call_expression
+                all:
+                  - has:
+                      field: function
+                      kind: member_expression
+                      all:
+                        - has: { field: object, pattern: $SPY }
+                        - has:
+                            field: property
+                            regex: '^mock(Implementation|ReturnValue|ResolvedValue|RejectedValue)(Once)?$'
+                  - not: { has: { field: arguments, regex: '\.(call|apply)\(\s*this\b' } }
     - kind: import_statement
       has:
         field: source
