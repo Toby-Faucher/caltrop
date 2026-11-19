@@ -442,6 +442,47 @@ class CaltropTest(Fixture):
             self.assertEqual(mod.base_id(rule_id), "no-weak-result-assert", rule_id)
         self.assertEqual(mod.base_id("no-fixed-sleep-tests-dir"), "no-fixed-sleep")
 
+    def test_mocks_subject(self):
+        loader = importlib.machinery.SourceFileLoader("caltrop", SCRIPT)
+        mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("caltrop", loader))
+        loader.exec_module(mod)
+        # Modules beside some of the tests: a test with its own module next to it mocks a same-named dependency.
+        for rel in ("src/components/toast.ts", "src/lib/stores/toast.ts", "src/lib/stores/toast.test.ts"):
+            self.write(rel, "")
+        for test, spec, want in [
+            ("src/lib/stores/toast.test.ts", "$lib/stores/toast.svelte", True),
+            ("web/src/lib/stores/toast.svelte.test.ts", "$lib/stores/toast.svelte.ts", True),
+            ("src/lib/__tests__/toast.test.ts", "$lib/stores/toast.svelte", True),  # no src/lib/toast.*
+            ("src/toast.test.ts", "./toast", True),
+            ("src/toast.spec.js", "./toast.js", True),
+            ("src/toast/index.test.ts", "./index", True),
+            ("src/__tests__/toast.ts", "../toast", True),
+            ("src/__tests__/toast.test.ts", "../toast/index.js", True),
+            ("src/Card.test.ts", "./Card.svelte", True),
+            ("src/api.test.ts", "@/api", True),
+            ("tests/unit/toast.test.ts", "../../src/lib/toast", True),
+            ("src/toast.test.ts", "./api", False),  # a dependency
+            ("src/toast.test.ts", "./toast-helpers", False),  # a sibling module
+            ("src/components/toast.test.ts", "../stores/toast", False),  # own toast.ts beside the test
+            ("src/lib/stores/toast.test.ts", "$lib/toast", False),
+            ("src/components/Toast.test.ts", "$lib/stores/toast", False),  # component vs store
+            ("src/axios.test.ts", "axios", False),  # a package
+            ("src/debounce.test.ts", "lodash/debounce", False),
+            ("src/env.test.ts", "$env/dynamic/private", False),
+        ]:
+            self.assertEqual(mod.mocks_subject(self.repo, test, spec), want, (test, spec))
+
+    def test_mock_subject_replaces_mock_libs_hit(self):
+        self.write("src/lib/toast.test.ts", (
+            "vi.mock('$lib/toast.svelte', () => ({ addToast: (m) => m }));\n"
+            "vi.mock('./api');\n"
+            "it('x', () => { expect(addToast('a')).toBe('a'); });\n"))
+        r = self.check()
+        self.assertIn("src/lib/toast.test.ts:1: no-mock-subject:", r.stdout)
+        self.assertNotIn("src/lib/toast.test.ts:1: no-mock-libs:", r.stdout)
+        self.assertIn("src/lib/toast.test.ts:2: no-mock-libs:", r.stdout)
+        self.assertNotIn("src/lib/toast.test.ts:2: no-mock-subject:", r.stdout)
+
     def test_weak_assert_variants_share_id(self):
         self.write("tests/test_a.py", "def test_a():\n    with pytest.raises(ValueError):\n        x = f()\n        g(x)\n")
         self.write("src/a.test.ts", "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('x'); } });\n")

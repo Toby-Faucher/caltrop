@@ -1,0 +1,20 @@
+id: no-mock-subject-ts
+language: typescript
+severity: error
+message: "This file mocks the module it is named after, so its tests run the mock, not the code. Import the real module and test it. If it cannot load under the test runner, fix the test setup instead."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# Every vi.mock('<path>') and friends. caltrop keeps only the calls whose path names the module the test file is
+# named after (mocks_subject()), and drops the no-mock-libs hit on the same call.
+rule:
+  kind: call_expression
+  all:
+    - has: { field: function, regex: '^(vi|jest)\.(mock|doMock|unstable_mockModule)$' }
+    - has:
+        field: arguments
+        has: { nthChild: 1, kind: string, pattern: $PATH }

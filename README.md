@@ -219,7 +219,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs`, `.mts` and `.cts` as TypeScript, `.tsx` and `.jsx` as tsx, and `.svelte` files as HTML, so the rules also run inside a component's `<script>` block. ast-grep treats tsx as its own language, so `rules/tsx/`, `utils/tsx/` and `rule-tests/tsx/` are generated copies of the `ts` ones: edit the `ts` file and run `scripts/gen-tsx.py`. A unit test fails if the copies are stale.
 
-<details><summary>17 TypeScript, JavaScript and Svelte rules</summary>
+<details><summary>18 TypeScript, JavaScript and Svelte rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -227,6 +227,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-deadline-poll` | The same sleeps inside `for`/`for..of`/`while`/`do` in test code, skipping fake-timer files the same way. The search stops at the nearest function or callback. | Wait on a signal (an event, a promise the code resolves, `expect.poll`/`waitFor` on the real condition), not a sleep in a loop. |
 | `no-test-swap` | Outside test code and tool config: a read of `import.meta.env.VITEST` or `process.env.VITEST`/`VITEST_WORKER_ID`/`JEST_WORKER_ID`, or `import.meta.env.MODE`/`process.env.NODE_ENV` compared with `'test'`, in code or in a `.svelte` template (`{#if ..}`, `{..}`, `attr={..}`). `DEV`, `PROD`, `$app/environment` `dev`, `import.meta.vitest` and assignments are skipped. | Production code must behave the same under test. Pass the dependency in (a parameter, a context, a constructor argument) and give the test a real one. `dev`/`DEV`/`PROD` are fine; they are not test switches. |
 | `no-mock-libs` | `vi`/`jest` `.mock`, `.doMock`, `.unstable_mockModule`; `vi.stubGlobal` of `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource`; `globalThis.fetch = vi.fn()`; the first `.mockImplementation/ReturnValue/ResolvedValue/RejectedValue(Once)` on a `vi.spyOn`/`jest.spyOn`, or `const s = vi.spyOn(..)` when `s.mock*(..)` follows in the same block; imports of `sinon`, `ts-mockito`, `testdouble`, `jest-mock-extended`, `vitest-mock-extended`, `fetch-mock`, `jest-fetch-mock`, `vitest-fetch-mock`. Skipped: `vi.fn()`, `vi.mocked`, spies on `console`, pass-through spies, msw, nock, and mocks of SvelteKit's `$env/(dynamic\|static)/(private\|public)` and `$app/navigation`, `stores`, `state`, `forms`, `environment`, `paths`, `env`, `env/public`, `env/private` (SvelteKit 3). | Use the real implementation; pass dependencies in instead of replacing modules or globals. For HTTP, use a real local server or msw (it serves real Responses to the real fetch). A `vi.fn()` callback spy is fine. |
+| `no-mock-subject` | In test code, `vi`/`jest` `.mock`/`.doMock`/`.unstable_mockModule` of the module the test file is named after: `toast.test.ts` or `__tests__/toast.ts` mocking `./toast`, `../toast/index.js` or `$lib/stores/toast.svelte` (extensions and a trailing `/index` dropped; relative paths and the `$lib`, `@` and `~` aliases). When the paths differ, a same-named module counts as a dependency if the test's own module sits beside it. Packages and other aliases are skipped. Replaces the `no-mock-libs` hit on the same call. | This file mocks the module it is named after, so its tests run the mock, not the code. Import the real module and test it. If it cannot load under the test runner, fix the test setup instead. |
 | `no-test-retries` | `retry`/`retries` with a nonzero literal (including `CI ? 2 : 0`) in the `test:` object of a vite/vitest config, at the top level of a Playwright config, or in a `projects[]` entry (plugin and dev-server retry options are skipped); an options object passed to `it`/`test`/`describe`/`test.describe.configure`; `this.retries(n)`; `jest.retryTimes(n)`. | Make the test deterministic; a retry hides the flake. |
 | `no-ignored-test` | `xit`/`xtest`/`xdescribe`; any `.todo`; `.skip`/`.fixme` with no arguments or with a test body, including `.concurrent.skip`, `test.describe.skip` and `it.skip.each(..)`; expected-to-fail tests in any form: vitest `.fails`, jest `.failing` (`.each` too) and Playwright `test.fail(..)`. | A skipped or todo test never runs in CI, and an expected-to-fail test (`.fails`, `.failing`, `test.fail`) passes while the code is broken. Make it run and pass (fixture, real dependency or a CI job), or delete it. |
 | `no-focused-test` | `.only` on `it`/`test`/`describe` and friends (`.only.each` too), and `fit`/`fdescribe` (`.each` too) called as a test declaration. | `.only` silently skips every other test in the file. Remove it. |
@@ -267,8 +268,9 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>32 Python limits</summary>
+<details><summary>33 Python limits</summary>
 
+- Python has no `no-mock-subject`. `patch('app.mailer.send')` in `test_mailer.py` usually replaces a dependency as `mailer` looks it up (patch where it is used), so the module name does not tell the subject from a dependency. `no-mock-libs` still reports the patch.
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
 - `.call_later` counts only on a receiver named `loop` (`self.loop` too) or `get_running_loop()`/`get_event_loop()`. `threading.Timer` is not detected.
@@ -306,7 +308,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### TypeScript, JavaScript and Svelte
 
-<details><summary>29 TypeScript, JavaScript and Svelte limits</summary>
+<details><summary>30 TypeScript, JavaScript and Svelte limits</summary>
 
 - Playwright's conditional `test.fail(cond, ..)` counts as `no-ignored-test`, like a conditional `pytest.mark.xfail(cond)`, while a conditional `test.skip(cond, ..)` counts as `no-silent-skip`. An expected failure passes while the code is broken whatever the condition.
 - An empty `waitFor` is only caught when the callback is literally empty or returns a literal. `waitFor(() => ready)` or a callback that calls something without asserting is not flagged.
@@ -335,6 +337,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - Tests whose only checks are `toBeTruthy()`, `toBeDefined()`, `not.toBeNull()` or `not.toBeUndefined()` are not flagged. A draft rule that skipped Testing Library `getBy*`/`findBy*`/`queryBy*` and `querySelector` subjects still hit 57 tests in food, evia-manager and claude-orchestrator, and 6 of a 15-test sample were fine: presence was the contract ("rows are not swept", "each category is accepted") or a helper did the asserting.
 - `no-assertion-free-test` matches helpers by name only, the same way as in Python, and only sees helpers that assert directly: a helper that asserts through another helper, or one outside test code, does not count. A Playwright `page.getByRole(..)` alone is not an assertion (it does not throw); Testing Library's `getBy*` is.
 - `fit`/`fdescribe` count only as a statement whose first argument is a string or template and whose second, if any, is an inline function, since `fit` is also a common function name (`expect(fit(a, b))`). A focused test with a named callback (`fit('x', run)`) is missed.
+- `no-mock-subject` resolves only relative paths and the `$lib` (`src/lib`), `@` and `~` (`src`) aliases; `tsconfig` `paths` and other aliases are not read, so `vi.mock('#app/toast')` is missed. It matches by file name, so a module tested from a file named differently (`notifications.test.ts` for `toast.ts`) is missed, and a test away from its module (under `tests/`, or `__tests__/` in a parent directory) that mocks an unrelated module of the same name is reported.
 - `no-test-filter` does not read `--passWithNoTests` passed from a script file (`spawn('vitest', ['--passWithNoTests'])`), nor `exclude`/`testPathIgnorePatterns`, which usually skip non-test files.
 - `no-fake-impls` checks classes declared directly in an `it`/`test`/`specify` callback, not in `describe`, a hook or a helper, and skips any with `extends` (an instrumented subclass of the real class is allowed; a fake extending an abstract class is missed unless a name gives it away). An object literal fake (`{ send: async () => false }`) is not a class and is not detected.
 
