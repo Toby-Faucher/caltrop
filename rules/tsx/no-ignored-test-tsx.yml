@@ -2,7 +2,7 @@
 id: no-ignored-test-tsx
 language: tsx
 severity: error
-message: "A skipped or todo test never runs in CI. Make it run (fixture, real dependency or a CI job), or delete it."
+message: "A skipped or todo test never runs in CI, and an expected-to-fail test (`.fails`, `.failing`, `test.fail`) passes while the code is broken. Make it run and pass (fixture, real dependency or a CI job), or delete it."
 files:
   - "**/*.test.*"
   - "**/*.spec.*"
@@ -12,7 +12,7 @@ files:
   - "**/e2e/**"
 utils:
   modifier:
-    regex: '^(it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.(skip|todo|fixme)(\.(each|for))?$'
+    regex: '^(it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.(skip|todo|fixme|fails|failing|fail)(\.(each|for))?$'
 rule:
   kind: call_expression
   any:
@@ -23,7 +23,9 @@ rule:
         field: function
         all:
           - matches: modifier
-          - regex: '\.todo|\.(each|for)$'
+          # An inverted test (vitest .fails, jest .failing, Playwright test.fail) is an xfail: flagged in every
+          # form. Playwright's conditional test.fail(cond, ..) too, as no-ignored-test-py flags xfail(cond).
+          - regex: '\.(todo|fails|failing|fail)\b|\.(each|for)$'
     # .skip/.fixme with no arguments, or with a test body after the title: unconditional.
     # A Playwright condition (test.skip(isCI, ..)) is no-silent-skip.
     - all:

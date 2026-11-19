@@ -197,6 +197,7 @@ class CaltropTest(Fixture):
         self.write("src/C.svelte", "<p>x</p>\n{#if import.meta.env.MODE === 'test'}<Fake />{/if}\n")
         self.write("src/d.test.tsx", "it.skip('x', () => { render(<App />); });\n")
         self.write("src/e.test.jsx", "it.skip('x', () => { render(<App />); });\n")
+        self.write("src/f.test.ts", "await waitFor(() => {});\n")
         r = self.check()
         self.assertIn("tests/test_a.py:4: no-fixed-sleep:", r.stdout)
         self.assertIn("src/A.svelte:2: no-test-swap:", r.stdout)
@@ -205,11 +206,13 @@ class CaltropTest(Fixture):
         self.assertIn("src/C.svelte:2: no-test-swap:", r.stdout)
         self.assertIn("src/d.test.tsx:1: no-ignored-test:", r.stdout)
         self.assertIn("src/e.test.jsx:1: no-ignored-test:", r.stdout)
+        self.assertIn("src/f.test.ts:1: no-fixed-sleep: Wait for the condition", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
         toml = (self.repo / "caltrop.toml").read_text()
         self.assertNotIn("-py", toml)
         self.assertNotIn("-ts", toml)
         self.assertNotIn("-svelte", toml)
+        self.assertNotIn("wait-for", toml)
         self.assertEqual(self.check().returncode, 0)
 
     def test_tsx_copies_in_sync(self):
