@@ -164,6 +164,8 @@ ast-grep test -c sgconfig.yml --skip-snapshot-tests
 python3 -m unittest discover -s tests -v
 ```
 
+To add a rule or a language, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Credit
 
 The approach is modelled on [landmines](https://github.com/interfere-inc/landmines) by interfere-inc.

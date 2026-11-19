@@ -1,3 +1,5 @@
+> Historical record: written before v1.0.0; README.md and docs/versions.md are current.
+
 # caltrop: design
 
 Date: 2026-11-17. Status: approved by Toby.

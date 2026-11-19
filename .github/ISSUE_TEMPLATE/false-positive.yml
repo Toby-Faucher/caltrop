@@ -1,0 +1,32 @@
+name: False positive
+description: caltrop flagged code that is not a test shortcut.
+labels: ["bug"]
+body:
+  - type: input
+    id: rule
+    attributes:
+      label: Rule id
+      placeholder: no-fixed-sleep
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: caltrop version
+      description: Output of `caltrop --version`, or the commit you pin.
+    validations:
+      required: true
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Code
+      description: The smallest snippet that is flagged, with its file path.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is fine
+    validations:
+      required: true
