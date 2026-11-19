@@ -1,0 +1,29 @@
+id: no-swallowed-error-py
+valid:
+  # The handler checks the error.
+  - "def test_a():\n    try:\n        f()\n    except ValueError as e:\n        assert 'bad' in str(e)"
+  # A hand-written pytest.raises: the try fails the test when nothing is raised.
+  - "def test_a():\n    try:\n        guard(x)\n        raise AssertionError('not refused')\n    except Refused:\n        pass"
+  - "def test_a():\n    try:\n        guard(x)\n        pytest.fail('not refused')\n    except Refused:\n        pass"
+  - "class T(unittest.TestCase):\n    def test_a(self):\n        try:\n            guard(x)\n            self.fail('not refused')\n        except Refused:\n            pass"
+  # continue in a loop skips bad input.
+  - "def test_a():\n    for line in out.splitlines():\n        try:\n            rows.append(json.loads(line))\n        except ValueError:\n            continue\n    assert rows"
+  # Best-effort cleanup.
+  - "def test_a():\n    try:\n        run()\n    finally:\n        try:\n            shutil.rmtree(d)\n        except OSError:\n            pass"
+  - "def test_a():\n    try:\n        proc.kill()\n    except ProcessLookupError:\n        pass"
+  - "def test_a():\n    with suppress(FileNotFoundError):\n        os.unlink(path)"
+  - "@pytest.fixture\ndef server():\n    s = start()\n    yield s\n    try:\n        s.stop()\n    except Exception:\n        pass"
+  - "class T(unittest.TestCase):\n    def tearDown(self):\n        with contextlib.suppress(OSError):\n            self.conn.close()"
+  # Outside a test function: helpers and thread workers.
+  - "def _read(p):\n    try:\n        return p.read_text()\n    except FileNotFoundError:\n        pass"
+  - "def test_a():\n    def worker():\n        try:\n            cb.call(boom)\n        except Exception:\n            pass\n    run_threads(worker)"
+invalid:
+  - "def test_a():\n    try:\n        start_guard(live=True)\n    except StartRefused:\n        pass\n    assert MARKER not in opened"
+  - "def test_a():\n    try:\n        f()\n    except Exception:  # noqa: BLE001\n        ..."
+  - "def test_a():\n    try:\n        f()\n    except:\n        # expected\n        pass"
+  - "async def test_a():\n    try:\n        await f()\n    except (RuntimeError, LookupError):\n        pass"
+  - "class T(unittest.TestCase):\n    def test_a(self):\n        try:\n            f()\n        except SystemExit:\n            pass  # expected"
+  # A broad handler swallows the AssertionError meant to fail the test.
+  - "def test_a():\n    try:\n        f()\n        raise AssertionError('no error')\n    except Exception:\n        pass"
+  - "def test_a():\n    with suppress(ValueError):\n        parse(x)\n    assert calls == 1"
+  - "def test_a():\n    with contextlib.suppress(Exception):\n        run()"

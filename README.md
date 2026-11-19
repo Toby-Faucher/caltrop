@@ -183,7 +183,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ### Python
 
-<details><summary>13 Python rules</summary>
+<details><summary>14 Python rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -200,6 +200,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 | `no-constant-assert` | In test code: `assert True`, a nonzero number or a non-empty string; `assert x == x` on a name or attribute path; `assert len(x) >= 0`; `self.assertTrue(True)`; an assert whose condition ends in `or True`. `assert False`/`assert 0` and `assert f(x) == f(x)` (a determinism check) are skipped. | This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green. |
 | `no-coverage-pragma` | A comment that coverage.py reads as an exclusion (its default `# pragma: no cover` and `# pragma: no branch` regexes), in any file. Skipped where coverage.py already excludes the line, so the pragma changes nothing: `if TYPE_CHECKING:` and a stub whose body is only `...` (a `Protocol` method). | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 | `no-source-text-test` | In test code: `inspect.getsource(..)`/`getsourcelines(..)`; `open(..)` (not for writing) or `.read_text()`/`.read_bytes()` whose call names a `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.svelte`, `.vue` or `.rs` file in a string literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text passed to `exec`/`compile`/`eval` or copied with `.write_text(..)`; hash pins (`hashlib`, `sha*`, `*digest`); `getsource(a) == getsource(b)` parity checks. | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file or `inspect.getsource` passes whatever the code does at run time. |
+| `no-swallowed-error` | Directly in a `test*` function: `except ..: pass` or `...` (comments allowed), and `with suppress(..)`/`contextlib.suppress(..)`. Skipped: a handler inside `finally`, a `try` or `with` body that only cleans up (`close`, `kill`, `terminate`, `unlink`, `remove`, `rmtree`, `stop` and similar), and a `try` that ends in `raise AssertionError`/`self.fail`/`pytest.fail`/`assert False` with a handler narrower than `Exception`. | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`pytest.raises(X)`). Cleanup that may fail belongs in a fixture's teardown or `addCleanup`. |
 
 </details>
 
@@ -209,7 +210,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs`, `.mts` and `.cts` as TypeScript, `.tsx` and `.jsx` as tsx, and `.svelte` files as HTML, so the rules also run inside a component's `<script>` block. ast-grep treats tsx as its own language, so `rules/tsx/`, `utils/tsx/` and `rule-tests/tsx/` are generated copies of the `ts` ones: edit the `ts` file and run `scripts/gen-tsx.py`. A unit test fails if the copies are stale.
 
-<details><summary>14 TypeScript, JavaScript and Svelte rules</summary>
+<details><summary>15 TypeScript, JavaScript and Svelte rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -227,6 +228,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-constant-assert` | In test code: `expect(<true/false/null/undefined/number>)` with `toBe`/`toEqual`/`toStrictEqual`/`toBeTruthy`/`toBeFalsy`/`toBeDefined`/`toBeNull`/`toBeUndefined` and a literal or no argument; `expect(x).toBe(x)` (`toEqual`, `toStrictEqual`) on a name or property path; `expect(x.length/.size).toBeGreaterThanOrEqual(0)`; `assert(true)`, `assert.ok(true)`. String subjects and `expect(f(x)).toBe(f(x))` (a determinism check) are skipped. | This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green. |
 | `no-coverage-pragma` | In any file, including a `.svelte` `<script>` (both langs) and JSX: `istanbul ignore next/if/else/file`, `c8`/`v8 ignore next/if/else/file/start`, `node:coverage ignore next`/`disable`, as `//` or `/* */`. A `start`/`stop` or `disable`/`enable` pair counts once. | Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs. |
 | `no-source-text-test` | In test code: `readFileSync`/`readFile` (`fs.`, `fs.promises.`, `fsp.` too) whose arguments name a `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.mts`, `.cts`, `.svelte`, `.vue`, `.py` or `.rs` file in a string, template or `new URL(..)` literal. Skipped: paths that name a fixture, golden, snapshot or `testdata` file, or an output directory (`tmp*`, `out`/`outDir`, `dist`, `build`, `gen`); text run by `vm.runIn*Context`, `new vm.Script`, `new Function` or `eval`, directly or through a `const` in the same block; hash pins (`.update(readFileSync(..))`). | Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file passes whatever the code does at run time. |
+| `no-swallowed-error` | Inside an `it`/`test`/`specify` callback: `await f().catch(..)` as a statement with an empty handler (`() => {}`, `() => undefined`/`null`/`void 0`, `function () {}`, `noop`); an empty `catch {}`/`catch (e) {}` (comments allowed) whose `try` awaits something. Skipped: a used result (`const b = await r.json().catch(() => null)`), a `.catch` that is not awaited, a sync `try`, `finally` blocks, before/after hooks, Playwright fixture code after `await use(..)`, and best-effort cleanup (`close`, `kill`, `rm`, `unlink`, `chmod`, `destroy`, `dispose`, `stop` and similar). | Do not discard an error in a test. Let it fail the test, or assert which error you expect (`rejects.toThrow(X)`). Cleanup that may fail belongs in `afterEach` or a fixture's teardown. |
 
 </details>
 
@@ -250,7 +252,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>18 Python limits</summary>
+<details><summary>20 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -270,12 +272,14 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-coverage-pragma` cannot judge the reason. A pragma on code a test cannot reach (an `if __name__ == "__main__":` block, an alembic migration, a Windows-only branch, an optional-import fallback) is reported like any other; allowlist it. A `Protocol` method with a `pass` or `raise NotImplementedError` body is reported too (only a `...` body is skipped).
 - `no-source-text-test` only sees a source path written in the read call itself. A path built in a variable on another line (`p = REPO / "x.py"`, then `p.read_text()`) is missed. Static guards that parse the source on purpose (`ast.parse(..)` to check imports) are reported; allowlist them.
 - `no-conditional-assert` also reports an `if` that is a deliberate implication (`if a != b: assert marks`, "when it diverges, a trace is logged") and an `if` whose block runs setup that happens to assert. Assert the condition first, or allowlist it.
+- `no-swallowed-error` only checks code directly in a `test*` function, so a swallowed error in a helper, a thread worker or a nested `def` is missed. `except ..: continue` is not flagged: in parse and retry loops it skips bad input.
+- `no-swallowed-error` also flags a handler for the test's own sentinel exception (`raise Stop()` to end a run early) and `except E: pass` followed by an assert that fails anyway when `E` is raised. Allowlist those.
 
 </details>
 
 ### TypeScript, JavaScript and Svelte
 
-<details><summary>15 TypeScript, JavaScript and Svelte limits</summary>
+<details><summary>17 TypeScript, JavaScript and Svelte limits</summary>
 
 - A `.svelte` `<script>` without `lang="ts"` is parsed as JavaScript, and only `no-test-swap` and `no-coverage-pragma` have a JavaScript copy (`*-js.yml`). Test files are `.ts`/`.js`, so the test rules still apply to them.
 - Any file under a `test/`, `tests/` or `e2e/` directory counts as test code, so a production route such as `src/routes/test/+page.svelte` is skipped by `no-test-swap`.
@@ -292,6 +296,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-coverage-pragma` only reads comments: `coverage.exclude` in a vitest config, jest `coveragePathIgnorePatterns`, c8/nyc `exclude` and low `thresholds` are not read. It cannot judge the reason either, so an ignore around entry-point wiring (`if (import.meta.main)`) is reported; allowlist it. A comment in a Svelte template (`<!-- istanbul ignore -->`) is not checked.
 - `no-source-text-test` only sees a source path written in the read call itself. A path built in a variable on another line (`const p = join(__dirname, 'a.ts')`, then `readFileSync(p)`) is missed. Text that is read and then partly run (a regex sliced out of the source and passed to `new Function`) is still reported.
 - `no-conditional-assert` reports a deliberate implication too (`if (literal) expect(url).toContain(SEGMENT)`, where the other case is legal and checked elsewhere). Narrowing counts only when the earlier `expect(..)` has exactly a value from the condition: `expect(r).toMatchObject({ ok: true }); if (r.ok)` is skipped through `r`, but `expect(r.kind === 'x').toBe(true); if (r.kind === 'x')` is not.
+- `no-swallowed-error` only checks code inside an `it`/`test` callback and only an awaited `.catch(..)` or a `try` that awaits. It misses a swallowed sync call (`try { parse(x) } catch {}`), a floating `void f().catch(() => {})`, helpers outside the test, and e2e scripts that do not use `it`/`test`.
+- `no-swallowed-error` flags `await p.catch(() => null)` on a promise the test already checked, and a `.catch(() => {})` in a mock implementation inside a test that imitates a retry. Allowlist those.
 
 </details>
 
