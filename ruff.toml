@@ -1,0 +1,8 @@
+target-version = "py311"
+# `caltrop` has no .py extension; CI names it explicitly.
+extend-include = ["caltrop"]
+
+[lint]
+select = ["E", "F", "B"]
+# Style only: long lines and `l` as a loop name are fine here.
+ignore = ["E501", "E741"]

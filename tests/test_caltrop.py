@@ -245,6 +245,50 @@ class CaltropTest(Fixture):
             self.assertEqual(r.returncode, 2, body)
             self.assertNotIn("Traceback", r.stderr)
 
+    def assert_hits(self, rule, text, hit, miss):
+        # Every path gets the same snippet; exactly the `hit` paths should report `rule`.
+        for p in hit + miss:
+            self.write(p, text)
+        out = self.check().stdout
+        self.assertEqual({line.split(":")[0] for line in out.splitlines() if f": {rule}:" in line}, set(hit), out)
+
+    def test_rust_test_code_files(self):
+        self.assert_hits("no-fixed-sleep", SLEEP,
+                         ["tests/a.rs", "crate/tests/b.rs", "src/tests.rs", "src/view_tests.rs"],
+                         ["src/lib.rs", "src/tests_util.rs", "src/latests.rs"])
+        self.assert_hits("no-test-swap", "#[cfg(not(test))]\nfn f() {}\n",
+                         ["src/main.rs"], ["tests/c.rs", "src/x/tests.rs", "src/x/view_tests.rs"])
+
+    def test_python_test_code_files(self):
+        self.assert_hits("no-fixed-sleep", "import time\ntime.sleep(1)\n",
+                         ["test_a.py", "pkg/a_test.py", "conftest.py", "tests/h.py", "test/h.py", "pkg/tests/sub/h.py"],
+                         ["pkg/mod.py", "pkg/testing.py", "pkg/contest.py", "pkg/attest.py"])
+        self.assert_hits("no-test-swap", 'import sys\nif "pytest" in sys.modules:\n    x()\n',
+                         ["app/mod.py"],
+                         ["app/test_b.py", "app/b_test.py", "app/conftest.py", "app/tests/h.py", "app/test/h.py"])
+
+    def test_ts_test_code_files(self):
+        self.assert_hits("no-fixed-sleep", "await sleep(100);\n",
+                         ["src/a.test.ts", "src/a.spec.ts", "src/b.test.js", "src/c.spec.mjs",
+                          "src/__tests__/a.ts", "tests/a.ts", "test/a.js", "e2e/a.ts"],
+                         ["src/a.ts", "src/b.js", "src/testing.ts", "src/latest.ts"])
+
+    def test_ts_test_swap_skips_test_code_and_tool_config(self):
+        self.assert_hits("no-test-swap", "if (process.env.VITEST) x();\n",
+                         ["src/a.ts", "src/b.js", "src/c.mjs"],
+                         ["src/a.test.ts", "src/a.spec.ts", "src/b.test.js", "src/__tests__/a.ts", "tests/a.ts",
+                          "test/a.js", "e2e/a.ts", "vite.config.ts", "playwright.config.js", "vitest.setup.ts",
+                          "vitest.workspace.ts", "src/__mocks__/a.ts"])
+
+    def test_svelte_script_langs(self):
+        ts = '<script lang="ts">\nif (process.env.VITEST) x();\nawait sleep(100);\n</script>\n'
+        js = ts.replace(' lang="ts"', "")
+        self.assert_hits("no-test-swap", ts, ["src/A.svelte"], ["tests/A.svelte", "src/__mocks__/A.svelte"])
+        self.assert_hits("no-test-swap", js, ["src/A.svelte", "src/B.svelte"],
+                         ["tests/B.svelte", "src/__mocks__/B.svelte"])
+        # Plain <script> is JavaScript, and only no-test-swap has a JavaScript copy, so tests/B.svelte is quiet.
+        self.assert_hits("no-fixed-sleep", ts, ["tests/A.svelte"], [])
+
     def test_malformed_ast_grep_output(self):
         for out in ["not json", "{}"]:
             fake = Path(tempfile.mkdtemp())
