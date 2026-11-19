@@ -1,0 +1,81 @@
+id: no-weak-result-assert.status-ts
+language: typescript
+severity: error
+message: "Assert the one status this request should return. A check that accepts 500 passes when the server crashes."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  # res.status, status, res.statusCode, Playwright's res.status().
+  status:
+    regex: '(^|\.)status(Code)?(\(\))?$'
+  five-xx:
+    regex: '^5\d\d$|INTERNAL_SERVER_ERROR|NOT_IMPLEMENTED|BAD_GATEWAY|SERVICE_UNAVAILABLE|GATEWAY_TIMEOUT'
+  # `>= 400` lets a 500 through; `>= 500` does not.
+  below-500:
+    regex: '^[1-4]\d\d$'
+  # `.not.toBe(200)` lets a 500 through. `.not.toBe(401)` is left alone: it checks that one layer let the request past.
+  success:
+    regex: '^2\d\d$'
+  # expect(<status>)
+  expect-status:
+    kind: call_expression
+    all:
+      - has: { field: function, regex: '^expect$' }
+      - has: { field: arguments, has: { nthChild: 1, matches: status } }
+rule:
+  any:
+    # expect([400, 500]).toContain(res.status)
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            all:
+              - has: { field: property, regex: '^(toContain|toBeOneOf)$' }
+              - has:
+                  field: object
+                  kind: call_expression
+                  has:
+                    field: arguments
+                    has: { nthChild: 1, kind: array, has: { matches: five-xx } }
+        - has: { field: arguments, has: { nthChild: 1, matches: status } }
+    # expect(res.status).toBeOneOf([400, 500])
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            all:
+              - has: { field: property, regex: '^toBeOneOf$' }
+              - has: { field: object, matches: expect-status }
+        - has: { field: arguments, has: { nthChild: 1, kind: array, has: { matches: five-xx } } }
+    # expect(res.status).toBeGreaterThanOrEqual(400)
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            all:
+              - has: { field: property, regex: '^toBeGreaterThan(OrEqual)?$' }
+              - has: { field: object, matches: expect-status }
+        - has: { field: arguments, has: { nthChild: 1, matches: below-500 } }
+    # expect(res.status).not.toBe(200)
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            all:
+              - has: { field: property, regex: '^(toBe|toEqual|toStrictEqual)$' }
+              - has:
+                  field: object
+                  kind: member_expression
+                  all:
+                    - has: { field: property, regex: '^not$' }
+                    - has: { field: object, matches: expect-status }
+        - has: { field: arguments, has: { nthChild: 1, matches: success } }

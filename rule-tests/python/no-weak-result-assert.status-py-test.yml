@@ -1,0 +1,45 @@
+id: no-weak-result-assert.status-py
+valid:
+  - "def test_a():\n    assert r.status_code == 400"
+  - "def test_a():\n    assert r.status_code in (400, 422)"
+  - "def test_a():\n    assert r.status_code in {401, 403}, r.text"
+  # Not a status: an `in` check on another value.
+  - "def test_a():\n    assert r.json()['code'] in (400, 500)"
+  - "def test_a():\n    assert count in [0, 500]"
+  - "def test_a():\n    assert r.elapsed >= 400"
+  # Parametrized expected status.
+  - "@pytest.mark.parametrize('expected', [400, 500])\ndef test_a(expected):\n    assert r.status_code == expected"
+  - "def test_a(expected):\n    assert r.status_code in expected"
+  # `< 500` and `!= 500` rule a crash out.
+  - "def test_a():\n    assert r.status_code < 500"
+  - "def test_a():\n    assert r.status_code != 500"
+  - "def test_a():\n    assert r.status_code not in (500, 502, 503)"
+  - "def test_a():\n    assert r.status_code >= 500"
+  # `!= 401` checks that one layer (auth) let the request past.
+  - "def test_a():\n    assert r.status_code != 401, r.text"
+  - "def test_a():\n    assert r.status_code not in (401, 403)"
+  - "def test_a(self):\n    self.assertNotEqual(r.status_code, 403)"
+  # Bounded range.
+  - "def test_a():\n    assert 400 <= r.status_code < 500"
+  - "def test_a():\n    assert r.status_code >= 400 and r.status_code < 500"
+  # Control flow, not an assertion.
+  - "def test_a():\n    if r.status_code >= 400:\n        pytest.fail(r.text)"
+  - "def test_a(self):\n    self.assertIn(r.status_code, (400, 422))"
+  - "def test_a(self):\n    self.assertNotEqual(r.status_code, 500)"
+  # Permissive success tuples are not flagged (they do not accept a crash).
+  - "def test_a():\n    assert r.status_code in (200, 201), r.text"
+invalid:
+  - "def test_a():\n    assert r.status_code in (400, 500)"
+  - "def test_a():\n    assert resp.status_code in {422, 500}, resp.text"
+  - "def test_a():\n    assert client.post('/x').status_code in [400, 404, 500]"
+  - "def test_a():\n    assert status in (400, 500)"
+  - "def test_a():\n    assert r.status in (400, HTTPStatus.INTERNAL_SERVER_ERROR)"
+  - "def test_a():\n    assert r.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR)"
+  - "def test_a():\n    assert r.status_code >= 400"
+  - "def test_a():\n    assert r.status_code > 399"
+  - "def test_a():\n    assert r.status_code != 200"
+  - "def test_a():\n    assert r.status_code != status.HTTP_200_OK"
+  - "def test_a():\n    assert r.status_code not in (200, 201)"
+  - "def test_a(self):\n    self.assertIn(r.status_code, (400, 500))"
+  - "def test_a(self):\n    self.assertGreaterEqual(r.status_code, 400)"
+  - "def test_a(self):\n    self.assertNotEqual(r.status_code, 200)"
