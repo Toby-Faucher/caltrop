@@ -1,0 +1,48 @@
+id: no-conditional-assert-py
+language: python
+severity: error
+message: "Assert the condition first, then check the value. An assertion inside an `if` with no `else` is skipped when the condition is false."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  assertion:
+    any:
+      - kind: assert_statement
+      - kind: call
+        has: { field: function, regex: '^self\.assert' }
+  # A value in the condition: `x`, `r.ok`, `r.ok()`.
+  operand:
+    any: [ { kind: identifier }, { kind: attribute }, { kind: call } ]
+    not: { regex: '^(self|cls)$' }
+rule:
+  kind: if_statement
+  all:
+    - not: { has: { field: alternative, regex: '.' } }
+    - has: { field: consequence, has: { stopBy: end, matches: assertion } }
+    # `if cond: assert ..; return` then more checks: the code after the if is the else.
+    - not: { has: { field: consequence, has: { kind: return_statement } } }
+    - matches: py-in-test-fn
+    # A loop over table rows checks a different thing per row.
+    - not: { matches: py-in-loop }
+    # The condition is checked before (narrowing), or is a parametrize argument that picks the case.
+    - not:
+        has:
+          field: condition
+          any:
+            - &known
+              matches: operand
+              pattern: $X
+              any:
+                # `assert r is not None` then `if r is not None:`.
+                - inside:
+                    stopBy: end
+                    kind: if_statement
+                    follows: { stopBy: end, kind: assert_statement, has: { stopBy: end, pattern: $X } }
+                - inside:
+                    stopBy: end
+                    kind: function_definition
+                    has: { field: parameters, has: { kind: identifier, pattern: $X } }
+            - has: { stopBy: end, all: [ *known ] }

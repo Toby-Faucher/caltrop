@@ -1,0 +1,24 @@
+id: no-conditional-assert-py
+valid:
+  # Narrowing after the check.
+  - "def test_a():\n    r = f()\n    assert r is not None\n    if r is not None:\n        assert r.v == 1"
+  - "def test_a():\n    r = f()\n    assert r.ok\n    if r.ok:\n        assert r.v == 1"
+  # A parametrize argument picks the branch.
+  - "@pytest.mark.parametrize('mode', ['a', 'b'])\ndef test_a(mode):\n    r = run(mode)\n    if mode == 'a':\n        assert r == 1"
+  # A loop over rows, or a helper.
+  - "def test_a():\n    for row in rows:\n        if row.x:\n            assert row.y == 1"
+  - "def test_a():\n    def check(v):\n        if v:\n            assert v == 1\n    check(1)"
+  - "def helper(r):\n    if r.ok:\n        assert r.v == 1"
+  # Both branches check, or the code after the if is the else.
+  - "def test_a():\n    if x:\n        assert a == 1\n    else:\n        assert b == 2"
+  - "def test_a():\n    if x:\n        assert a == 1\n    elif y:\n        assert b == 2"
+  - "def test_a():\n    if not hasattr(m, 'f'):\n        assert g() is None\n        return\n    assert g() == 1"
+  # A guard that fails the test is not a skipped check.
+  - "def test_a():\n    if not x:\n        pytest.fail('no x')"
+  - "def test_a():\n    if not x:\n        raise AssertionError('no x')"
+invalid:
+  - "def test_a():\n    r = f()\n    if r.ok:\n        assert r.v == 1"
+  - "def test_a():\n    if shutil.which('dash'):\n        assert run(['dash', '-n', p]).returncode == 0"
+  - "def test_a(tmp_path):\n    git = subprocess.run(['git', 'hash-object', p])\n    if git.returncode == 0:\n        assert git.stdout == blob"
+  - "class T(unittest.TestCase):\n    def test_a(self):\n        if self.path.exists():\n            self.assertEqual(read(self.path), 'x')"
+  - "def test_a():\n    if os.geteuid() != 0:\n        assert r.returncode != 0"
