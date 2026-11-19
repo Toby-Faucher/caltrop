@@ -1,0 +1,66 @@
+# Generated from rules/ts/no-conditional-assert-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-conditional-assert-tsx
+language: tsx
+severity: error
+message: "Assert the condition first, then check the value. An assertion inside an `if` with no `else` is skipped when the condition is false."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  assertion:
+    kind: call_expression
+    has:
+      field: function
+      all:
+        - regex: '^(expect|assert)\b'
+        # expect.fail()/assert.fail() under an if is a guard that fails the test, not a skipped check.
+        - not: { regex: '\bfail$' }
+  # A value in the condition: `x`, `r.ok`, `r.isErr()`.
+  operand:
+    any: [ { kind: identifier }, { kind: member_expression }, { kind: call_expression } ]
+rule:
+  kind: if_statement
+  all:
+    - not: { has: { field: alternative, regex: '.' } }
+    - has: { field: consequence, has: { stopBy: end, matches: assertion } }
+    # `if (c) { expect(..); return; }` then more checks: the code after the if is the else.
+    - not: { has: { field: consequence, any: [ { kind: return_statement }, { has: { kind: return_statement } } ] } }
+    # The if is in the test callback itself, not a helper or a per-row callback (forEach, it.each).
+    - matches: tsx-in-test-body
+    # A loop over table rows checks a different thing per row.
+    - not: { matches: tsx-in-loop }
+    # The test is one of a generated set (`for (const c of cases) it(..)`, `describe.each`): the if picks per case.
+    - not:
+        inside:
+          stopBy: end
+          kind: call_expression
+          has: { field: function, regex: '^(it|test|specify)(\.\w+)*$' }
+          inside:
+            stopBy: end
+            any:
+              - kind: for_statement
+              - kind: for_in_statement
+              - kind: call_expression
+                has: { field: function, regex: '\.(each|forEach|map)\b' }
+    - has:
+        field: condition
+        not:
+          has:
+            stopBy: end
+            matches: operand
+            pattern: $X
+            any:
+              # Narrowing after the check: `expect(r.ok).toBe(true); if (r.ok) expect(r.value)..`.
+              - inside:
+                  stopBy: end
+                  kind: if_statement
+                  follows: { stopBy: end, has: { stopBy: end, pattern: expect($X) } }
+              # A test parameter (Playwright `browserName`, a `.each` row) picks the case, not the run.
+              - inside:
+                  stopBy: end
+                  any: [ { kind: arrow_function }, { kind: function_expression } ]
+                  has: { field: parameters, has: { stopBy: end, pattern: $X } }

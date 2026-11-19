@@ -1,0 +1,28 @@
+id: no-conditional-assert-ts
+valid:
+  # Narrowing after the check.
+  - "it('a', () => { const r = f(); expect(r.ok).toBe(true); if (r.ok) expect(r.value).toBe(1); });"
+  - "it('a', () => { const r = f(); expect(r.isErr()).toBe(true); if (r.isErr()) { expect(r.error.code).toBe('x'); } });"
+  - "it('a', () => { const box = f(); expect(box).not.toBeNull(); if (box !== null) expect(box.x).toBe(1); });"
+  # A test parameter or a generated case picks the branch.
+  - "test('a', async ({ page, browserName }) => { if (browserName !== 'firefox') { expect(await f(page)).toEqual([]); } });"
+  - "for (const c of cases) { it(c.name, () => { if (c.out) expect(f(c.in)).toBe(c.out); }); }"
+  - "describe.each(rows)('x', (row) => { it('y', () => { if (row.a) expect(f()).toBe(1); }); });"
+  # A loop over rows, or a helper/per-row callback.
+  - "it('a', () => { for (const r of rows) { if (r.a) expect(r.b).toBe(1); } });"
+  - "it('a', () => { rows.forEach((r) => { if (r.a) expect(r.b).toBe(1); }); });"
+  - "it('a', () => { const check = (v) => { if (v) expect(v).toBe(1); }; check(1); });"
+  # Both branches check, or the code after the if is the else.
+  - "it('a', () => { if (x) expect(a).toBe(1); else expect(b).toBe(2); });"
+  - "it('a', () => { if ('error' in c) { expect(() => f()).toThrow('bad'); return; } expect(f()).toBe(1); });"
+  # A guard that fails the test is not a skipped check.
+  - "it('a', () => { if (!x) throw new Error('no x'); expect(x).toBe(1); });"
+  - "it('a', () => { if (!x) expect.fail('no x'); });"
+  - "it('a', () => { if (!x) assert.fail('no x'); });"
+  - "function helper(r) { if (r.ok) expect(r.v).toBe(1); }"
+invalid:
+  - "it('a', () => { const r = f(); if (r.ok) expect(r.value).toBe(1); });"
+  - "it('a', () => { if (existsSync(p)) { expect(read(p)).toContain('x'); } });"
+  - "it('a', async () => { const n = await count(); if (n <= 100) expect(page.next).toBeNull(); });"
+  - "test('a', () => { const r = check(); if (!r.ok) assert.ok(r.error.length > 0); });"
+  - "it('a', () => { const r = f(); expect(r.ok).toBe(true); if (r.ok) { if (r.kind === 'x') expect(r.v).toBe(1); } });"
