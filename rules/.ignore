@@ -1,0 +1,3 @@
+# pip installs these into a venv whose .gitignore is "*". Inside a git repo (a pre-commit
+# hook env) ast-grep would then skip every rule. This file un-ignores them.
+!*

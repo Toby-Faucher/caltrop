@@ -4,7 +4,40 @@ caltrop fails your check when a test takes a shortcut that coding agents like. I
 
 ## Install
 
-You need ast-grep 0.44.1 and Python 3.11 or newer (standard library only).
+caltrop needs ast-grep 0.44.1 and Python 3.11 or newer (standard library only). Pin caltrop and ast-grep: see [Pinning](#pinning).
+
+### GitHub Action
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - uses: Toby-Faucher/caltrop@v1.1.0
+    # with:
+    #   dir: path/to/repo   # default: .
+```
+
+It installs ast-grep 0.44.1 with pipx and runs `caltrop check`. The action first ships in v1.1.0; v1.0.0 has no `action.yml`.
+
+### pre-commit
+
+```yaml
+repos:
+  - repo: https://github.com/Toby-Faucher/caltrop
+    rev: v1.1.0
+    hooks:
+      - id: caltrop
+```
+
+The hook installs ast-grep 0.44.1 itself and checks the whole repo on every commit.
+
+### pipx
+
+```
+pipx install git+https://github.com/Toby-Faucher/caltrop@v1.1.0
+pipx install ast-grep-cli==0.44.1
+```
+
+### Manual
 
 ast-grep: download the prebuilt binary from the [0.44.1 release](https://github.com/ast-grep/ast-grep/releases/tag/0.44.1), or run:
 
@@ -145,16 +178,17 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `vi.stubGlobal` of non-network globals (`localStorage`) is not flagged.
 - `no-silent-skip` only checks prerequisite-style conditions, so `if (!el) return;` in a test is not caught.
 
-## Pinning in CI
+## Pinning
 
 Rule changes change the counts, and both too many and too few hits fail. So a consumer repo pins caltrop to a release tag, and pins ast-grep too. The version number says what a bump does to the counts: a PATCH never changes them, a MINOR can, a MAJOR can also need changes to `caltrop.toml` or CI. Bump the pin in its own PR and fix the new hits or lower the allowances there. See [docs/versions.md](docs/versions.md) for the scheme and how a release is cut.
+
+The tag goes in `uses: Toby-Faucher/caltrop@<tag>`, the pre-commit `rev:` or the pipx URL. The action and the hook pin ast-grep for you. Without the action (v1.0.0, or another CI), clone outside the checkout so caltrop itself is not scanned:
 
 ```yaml
 env:
   CALTROP_REF: v1.0.0
 steps:
   - uses: actions/checkout@v4
-  # Clone outside the checkout so caltrop itself is not scanned.
   - run: |
       git clone https://github.com/Toby-Faucher/caltrop "$RUNNER_TEMP/caltrop"
       git -C "$RUNNER_TEMP/caltrop" checkout "$CALTROP_REF"

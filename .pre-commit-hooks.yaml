@@ -1,0 +1,9 @@
+- id: caltrop
+  name: caltrop
+  description: Fail when tests take shortcuts that coding agents like.
+  entry: caltrop check
+  language: python
+  additional_dependencies: [ast-grep-cli==0.44.1]
+  # caltrop scans and counts the whole repo, not the staged files.
+  pass_filenames: false
+  always_run: true
