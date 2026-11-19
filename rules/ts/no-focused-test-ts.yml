@@ -11,6 +11,36 @@ files:
   - "**/e2e/**"
 rule:
   kind: call_expression
-  has:
-    field: function
-    regex: '^((it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.only(\.(each|for))?|f(it|describe))$'
+  any:
+    - has:
+        field: function
+        regex: '^((it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.only(\.(each|for))?)$'
+    # fit/fdescribe are also ordinary names (`expect(fit(a, b))`), so only a statement-level
+    # declaration counts: `fit('name', fn)` or `fit.each(rows)('name', fn)`.
+    - inside:
+        kind: expression_statement
+      has:
+        field: function
+        any:
+          - regex: '^f(it|describe)$'
+          - kind: call_expression
+            has:
+              field: function
+              regex: '^f(it|describe)\.each$'
+      all:
+        - has:
+            field: arguments
+            has:
+              nthChild: 1
+              any:
+                - kind: string
+                - kind: template_string
+        - not:
+            has:
+              field: arguments
+              has:
+                nthChild: 2
+                not:
+                  any:
+                    - kind: arrow_function
+                    - kind: function_expression
