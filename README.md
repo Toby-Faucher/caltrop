@@ -1,4 +1,4 @@
-# caltrop
+<h1><img src="docs/assets/logo-lockup.png" alt="caltrop" width="520"></h1>
 
 caltrop fails your check when a test takes a shortcut that coding agents like. It covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped tests and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
 
