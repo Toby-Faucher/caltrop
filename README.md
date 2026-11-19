@@ -141,11 +141,11 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ## Pinning in CI
 
-Rule changes change the counts, and both too many and too few hits fail. So a consumer repo pins caltrop to a commit, and pins ast-grep too. Bumping the pin means re-running `caltrop baseline` or fixing hits in the same PR.
+Rule changes change the counts, and both too many and too few hits fail. So a consumer repo pins caltrop to a release tag, and pins ast-grep too. The version number says what a bump does to the counts: a PATCH never changes them, a MINOR can, a MAJOR can also need changes to `caltrop.toml` or CI. Bump the pin in its own PR and fix the new hits or lower the allowances there. See [docs/versions.md](docs/versions.md) for the scheme and how a release is cut.
 
 ```yaml
 env:
-  CALTROP_REF: <commit sha>
+  CALTROP_REF: v1.0.0
 steps:
   - uses: actions/checkout@v4
   # Clone outside the checkout so caltrop itself is not scanned.

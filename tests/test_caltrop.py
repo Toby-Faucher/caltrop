@@ -208,6 +208,11 @@ class CaltropTest(Fixture):
         self.write("venv/lib/python3.12/site-packages/x/tests/a.rs", SLEEP)
         self.assertEqual(self.check().returncode, 0)
 
+    def test_version(self):
+        r = run("--version")
+        self.assertEqual(r.returncode, 0)
+        self.assertRegex(r.stdout, r"^caltrop \d+\.\d+\.\d+\n$")
+
     def test_nextest_zero_retries(self):
         self.write(".config/nextest.toml", "[profile.default]\nretries = 0\n")
         self.assertEqual(self.check().returncode, 0)
