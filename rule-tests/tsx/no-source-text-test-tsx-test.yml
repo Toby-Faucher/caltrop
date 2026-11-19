@@ -14,6 +14,9 @@ valid:
   - "const run = new Function(readFileSync('lib/a.js', 'utf8'));"
   - "new vm.Script(readFileSync('lib/a.js', 'utf8')).runInContext(ctx);"
   - "const pin = createHash('sha256').update(readFileSync('src/a.ts')).digest('hex');"
+  - "const sf = ts.createSourceFile('api.ts', readFileSync('src/api.ts', 'utf8'), ts.ScriptTarget.Latest);"
+  - "it('no server imports', () => { const src = readFileSync('src/lib/client.ts', 'utf8'); const ast = parse(src, { sourceType: 'module' }); expect(imports(ast)).not.toContain('server'); });"
+  - "const ast = parse(readFileSync('src/App.svelte', 'utf8'));"
   # Known limit: a path held in a variable is not seen.
   - "const p = join(__dirname, 'flow-runner.ts'); const src = readFileSync(p, 'utf8');"
 invalid:
@@ -25,3 +28,4 @@ invalid:
   - "const s = await fs.promises.readFile(\"src/App.vue\", 'utf8');"
   - "const s = await fsp.readFile(resolve(__dirname, 'server.mjs'), 'utf8');"
   - "it('x', () => { const code = readFileSync('src/a.ts', 'utf8'); vm.runInNewContext(other, ctx); expect(code).toMatch(/x/); });"
+  - "const cfg = JSON.parse(readFileSync('src/config.ts', 'utf8'));"

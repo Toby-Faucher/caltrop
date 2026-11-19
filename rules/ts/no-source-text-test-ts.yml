@@ -10,13 +10,17 @@ files:
   - "**/test/**"
   - "**/e2e/**"
 utils:
-  # Code that runs the text it read: vm.runInNewContext(src), new vm.Script(src), new Function(src), eval(src).
+  # Code that runs or parses the text it read: vm.runInNewContext(src), new vm.Script(src), new Function(src), eval(src).
   runs-code:
     any:
       - kind: call_expression
         has: { field: function, regex: '^(\w+\.)?(runInNewContext|runInContext|runInThisContext|compileFunction)$|^eval$' }
       - kind: new_expression
         has: { field: constructor, regex: '^((\w+\.)?(Script|SourceTextModule)|Function)$' }
+      # A parser (ts.createSourceFile, babel/acorn/svelte parse) reads structure, not text: an import-boundary guard.
+      - kind: call_expression
+        has: { field: function, regex: '(^|\.)(createSourceFile|parse|parseSync|parseModule|parseScript|parseExpression)$' }
+        not: { has: { field: function, regex: '^JSON\.' } }
 rule:
   kind: call_expression
   all:

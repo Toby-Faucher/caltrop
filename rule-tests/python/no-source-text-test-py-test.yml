@@ -12,6 +12,9 @@ valid:
   - "assert inspect.getsource(vendored.f) == inspect.getsource(original.f)"
   - "(td / 'launcher.py').write_text((MF / 'launcher.py').read_text())"
   - "obj = inspect.getmodule(f)"
+  - "tree = ast.parse((REPO / 'app' / 'api.py').read_text())"
+  - "def test_no_web_imports():\n    src = Path('api/main.py').read_text()\n    tree = ast.parse(src)\n    assert not imports(tree, 'web')"
+  - "mod = libcst.parse_module(Path('api/main.py').read_text())"
   # Known limit: a path held in a variable is not seen.
   - "p = REPO / 'tools' / 'x.py'\nsrc = p.read_text()"
 invalid:
@@ -22,4 +25,4 @@ invalid:
   - "src = Path('web/src/App.svelte').read_text()"
   - "with open('app/main.py') as f:\n    assert 'retry' in f.read()"
   - "with open(os.path.join(ROOT, 'src', 'lib.rs'), 'r') as f:\n    s = f.read()"
-  - "tree = ast.parse((REPO / 'tools' / 'hv4_read.py').read_text())"
+  - "def test_order():\n    src = Path('api/main.py').read_text()\n    tree = ast.parse(other)\n    assert src.index('a') < src.index('b')"
