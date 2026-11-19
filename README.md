@@ -168,6 +168,8 @@ Rule ids are stable. They key the allowlist. Each language has its own rule file
 | `no-deadline-poll` | A sleep call inside `loop`, `while` or `for` in test code. | Wait on a signal (`tokio::sync::Notify`, `watch`, a channel, an event stream), not on a deadline. |
 | `no-test-swap` | Outside test code: a `cfg!(..)` that mentions `test`, a `#[cfg(..)]` containing `not(test)`, or a `cfg` on a test-only cargo feature (a feature name with a `-` or `_` separated word `test`, `tests`, `testing`, `mock`, `fake` or `stub`, plural too, like `test-support` or `net_mock`). | Production code must behave the same under test. Pass the dependency in instead. |
 | `no-mock-crates` | `use` of `mockall`, `mockers`, `faux` or `mry`; `#[automock]` and similar attributes; `mock!`. | Use the real implementation. For HTTP, a real local server (`wiremock`, `httpmock` are fine). |
+| `no-stubbed-gate` | In test code, a FastAPI `dependency_overrides[..] = ..` (or `.update({..})`) whose replacement only raises `HTTPException` with 401 or 403: a lambda, or a `def` in the same file whose body raises it directly and has no `return`. In a `test*` function, only when that test asserts a 401/403; in a fixture or helper, always. A gate that checks something before it raises, and other statuses (a 503 to test an error handler), are skipped. | This test replaces the auth check with a stub that raises, then checks the stub raised. Override the user (the dependency that returns the current user) with a real non-admin user and let the real gate refuse. |
+| `no-stubbed-gate` | A pytest fixture named for a regular user (`user`, `member`, `regular`, `normal`, `readonly`, `viewer`, `guest`, `non_admin` as a `_`-separated part, and no `admin` part) that overrides a dependency whose name contains `admin` with something that does not raise. | This fixture is named for a regular user but overrides the admin check so it lets every request through, so its tests run as admin. Override only the current user with a non-admin user and leave the admin check real. |
 | `no-test-retries` | `retries` above 0 in any profile or override of `.config/nextest.toml`. | Make the test deterministic; a retry hides the flake. |
 | `no-ignored-test` | Any `#[ignore]` attribute. | An ignored test never runs in CI. Make it run (fixture, feature or a CI job), or delete it. |
 | `no-weak-result-assert` | `assert!` or `debug_assert!` whose whole condition is one `.is_ok()` or `.is_err()` (negated too). `&&`, `\|\|` or `^` make it a compound condition and it is skipped, as is `try_recv().is_ok()`/`is_err()`. | Assert the value or which error. Use `assert_eq!(r, Ok(..))`, `assert!(matches!(r, Err(E::X)))` or check `r.unwrap_err()`. |
@@ -184,7 +186,7 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 
 ### Python
 
-<details><summary>16 Python rules</summary>
+<details><summary>17 Python rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -259,7 +261,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>25 Python limits</summary>
+<details><summary>26 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -269,7 +271,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `import unittest` followed by `unittest.mock.patch(..)` is not detected; `import unittest.mock` is.
 - `monkeypatch.setattr` counts even when it only patches a constant.
 - A settings attribute named lowercase `testing` (`settings.testing`) is not caught by `no-test-swap`.
-- FastAPI `app.dependency_overrides[..] = ..` is not flagged: it passes a dependency in, it does not patch one. What it passes in is still checked (a `Fake*` class is reported by `no-fake-impls`).
+- FastAPI `app.dependency_overrides[..] = ..` is not flagged: it passes a dependency in, it does not patch one. What it passes in is still checked (a `Fake*` class is reported by `no-fake-impls`), and a replacement that only raises 401/403 is reported by `no-stubbed-gate`.
+- `no-stubbed-gate` only resolves a stub defined in the same file. A raising helper imported from `conftest.py` or a factory (`deny(403)`) is missed. A fixture named only `client` that opens the admin check is not caught: the rule has nothing to compare the name with.
 - `@pytest.mark.skipif` on the interpreter or platform (`sys.version_info < (3, 11)`, `sys.platform == "win32"`) is reported like any other skip. Allowlist it if your CI matrix runs the test elsewhere.
 - The `as e` exemption in `no-weak-result-assert` accepts any later read of `e.value`, including one that asserts nothing.
 - The `pytest.raises` body check looks one `with` deep: a nested `with` whose body is itself one compound statement is allowed.
