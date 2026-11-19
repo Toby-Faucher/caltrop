@@ -129,7 +129,7 @@ caltrop check [--format text|github] [REPO_DIR]   # default: text, current direc
 caltrop baseline [REPO_DIR]                        # write caltrop.toml from the current hits
 ```
 
-`check` scans the repo, counts hits per rule and file, and compares them with `caltrop.toml` at the repo root. Exit codes: 0 pass, 1 violations, 2 usage or tool error (ast-grep missing, bad TOML).
+`check` scans the repo, counts hits per rule and file, and compares them with `caltrop.toml` at the repo root. Exit codes: 0 pass, 1 violations, 2 usage or tool error (ast-grep missing, bad TOML, or ast-grep ran fewer rules than caltrop ships, for example because an ignore file above the install hides `rules/`).
 
 In GitHub Actions, `caltrop check --format github` prints each problem as an error annotation, so hits show up next to the code in the pull request. Allowance problems are annotated on `caltrop.toml`. The default is `--format text`. Exit codes are the same.
 
