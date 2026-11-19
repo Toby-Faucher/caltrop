@@ -10,13 +10,21 @@ rule:
         field: function
         regex: '^(vi|jest)\.(mock|doMock|unstable_mockModule|stubGlobal)$'
       not:
-        # stubGlobal is only flagged for network globals; stubbing e.g. matchMedia for jsdom is fine.
-        all:
-          - has: { field: function, regex: 'stubGlobal$' }
-          - not:
+        any:
+          # stubGlobal is only flagged for network globals; stubbing e.g. matchMedia for jsdom is fine.
+          - all:
+              - has: { field: function, regex: 'stubGlobal$' }
+              - not:
+                  has:
+                    field: arguments
+                    has: { nthChild: 1, regex: '^[''"`](fetch|XMLHttpRequest|WebSocket|EventSource)[''"`]$' }
+          # SvelteKit: $env/* and $app/env/* (Kit 3) only set env vars; $app/* runtime modules need a running app (the router), so
+          # unit tests must stub them. $lib/.. and other modules stay flagged.
+          - has:
+              field: arguments
               has:
-                field: arguments
-                has: { nthChild: 1, regex: '^[''"`](fetch|XMLHttpRequest|WebSocket|EventSource)[''"`]$' }
+                nthChild: 1
+                regex: '^[''"`]\$(env/(dynamic|static)/(private|public)|app/(navigation|stores|state|forms|environment|paths|env(/(private|public))?))[''"`]$'
     - kind: assignment_expression
       all:
         - has: { field: left, regex: '^(global|globalThis|window)\.(fetch|XMLHttpRequest|WebSocket|EventSource)$' }
