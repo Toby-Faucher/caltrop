@@ -8,6 +8,10 @@ valid:
   - "def test_a():\n    run(sleep=fake_sleep)"
   - "from time import monotonic\ndef test_a():\n    sleep(1)"
   - "def test_a():\n    clock.sleep(1)"
+  - "async def test_a():\n    await anyio.sleep(float('inf'))"
+  - "async def test_a():\n    await asyncio.sleep(math.inf)"
+  - "async def test_a():\n    loop.call_later(0, cb)"
+  - "def test_a():\n    helpers.call_later(cb, 10.1, loop)"
 invalid:
   - "import time\ndef test_a():\n    time.sleep(0.5)"
   - "async def test_a():\n    await asyncio.sleep(0.1)"
@@ -18,3 +22,7 @@ invalid:
   - "def test_a():\n    while x:\n        def later():\n            time.sleep(1)"
   - "def test_a():\n    for x in xs:\n        f = lambda: time.sleep(1)"
   - "@pytest.fixture\ndef server():\n    start()\n    time.sleep(2)\n    yield"
+  - "async def test_a():\n    await asyncio.sleep(float(n))"
+  - "async def test_a():\n    loop.call_later(0.1, raiser)"
+  - "async def test_a():\n    asyncio.get_running_loop().call_later(1, fut.set_result, None)"
+  - "async def test_a():\n    for x in xs:\n        self.loop.call_later(1.0, resp.release)"
