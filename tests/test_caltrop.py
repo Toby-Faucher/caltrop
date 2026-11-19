@@ -192,16 +192,28 @@ class CaltropTest(Fixture):
         self.write("src/A.svelte", '<script>\nif (import.meta.env.MODE === "test") x();\n</script>\n')
         self.write("src/B.svelte", '<script lang="ts">\nif (process.env.VITEST) x();\n</script>\n')
         self.write("src/c.test.ts", "it.skip('x', () => {});\n")
+        self.write("src/C.svelte", "<p>x</p>\n{#if import.meta.env.MODE === 'test'}<Fake />{/if}\n")
+        self.write("src/d.test.tsx", "it.skip('x', () => { render(<App />); });\n")
+        self.write("src/e.test.jsx", "it.skip('x', () => { render(<App />); });\n")
         r = self.check()
         self.assertIn("tests/test_a.py:4: no-fixed-sleep:", r.stdout)
         self.assertIn("src/A.svelte:2: no-test-swap:", r.stdout)
         self.assertIn("src/B.svelte:2: no-test-swap:", r.stdout)
         self.assertIn("src/c.test.ts:1: no-ignored-test:", r.stdout)
+        self.assertIn("src/C.svelte:2: no-test-swap:", r.stdout)
+        self.assertIn("src/d.test.tsx:1: no-ignored-test:", r.stdout)
+        self.assertIn("src/e.test.jsx:1: no-ignored-test:", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
         toml = (self.repo / "caltrop.toml").read_text()
         self.assertNotIn("-py", toml)
         self.assertNotIn("-ts", toml)
+        self.assertNotIn("-svelte", toml)
         self.assertEqual(self.check().returncode, 0)
+
+    def test_tsx_copies_in_sync(self):
+        r = subprocess.run([sys.executable, str(Path(SCRIPT).parent / "scripts/gen-tsx.py"), "--check"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_dependency_dirs_skipped(self):
         self.write("node_modules/x/tests/a.rs", SLEEP)

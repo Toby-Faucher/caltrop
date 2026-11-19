@@ -1,0 +1,17 @@
+# Generated from rule-tests/ts/no-fake-impls-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-fake-impls-tsx
+valid:
+  - "class FakeData { rows = []; }"
+  - "class Mockingbird implements Bird {}"
+  - "class Stubborn extends Base {}"
+  - "class RealApi implements Api {}"
+  - "const fakeApi: Api = { load: async () => [] };"
+  - "class TestError extends Error {}"
+invalid:
+  - "class FakeApi implements Api { async load() { return []; } }"
+  - "class MockEventSource extends EventTarget {}"
+  - "export class StubClock implements Clock { now() { return 0; } }"
+  - "class Spy_Logger extends Logger {}"
+  - "class Fake implements Store {}"
+  - "const C = class FakeSocket extends EventTarget {};"
+  - "abstract class DummyRepo implements Repo {}"

@@ -1,0 +1,14 @@
+# Generated from rule-tests/ts/no-deadline-poll-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-deadline-poll-tsx
+valid:
+  - "await sleep(10);"
+  - "for (const x of xs) { pool.run(async () => { await sleep(5); }); }"
+  - "while (!done) { await new Promise((r) => setTimeout(r, 0)); }"
+  - "while (!done) { await vi.advanceTimersByTimeAsync(10); }"
+  - "while (Date.now() < deadline) { setTimeout(tick, 10); }"
+  - "vi.useFakeTimers(); it('x', async () => { while (!done) { const p = sleep(10); await vi.advanceTimersByTimeAsync(10); await p; } });"
+invalid:
+  - "while (Date.now() < deadline) { if (await ready()) break; await sleep(50); }"
+  - "for (let i = 0; i < 10; i++) { await new Promise((r) => setTimeout(r, 100)); }"
+  - "do { await page.waitForTimeout(100); } while (!(await ok()));"
+  - "for (const x of xs) { if (x) { await delay(ms); } }"

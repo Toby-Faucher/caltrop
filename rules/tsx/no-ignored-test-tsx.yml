@@ -1,0 +1,37 @@
+# Generated from rules/ts/no-ignored-test-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-ignored-test-tsx
+language: tsx
+severity: error
+message: "A skipped or todo test never runs in CI. Make it run (fixture, real dependency or a CI job), or delete it."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+utils:
+  modifier:
+    regex: '^(it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.(skip|todo|fixme)(\.(each|for))?$'
+rule:
+  kind: call_expression
+  any:
+    - has:
+        field: function
+        regex: '^x(it|test|describe|context|specify)$'
+    - has:
+        field: function
+        all:
+          - matches: modifier
+          - regex: '\.todo|\.(each|for)$'
+    # .skip/.fixme with no arguments, or with a test body after the title: unconditional.
+    # A Playwright condition (test.skip(isCI, ..)) is no-silent-skip.
+    - all:
+        - has: { field: function, matches: modifier }
+        - has:
+            field: arguments
+            any:
+              - not: { has: { nthChild: 1 } }
+              - has:
+                  any: [ { kind: arrow_function }, { kind: function_expression } ]
+                  not: { nthChild: 1 }

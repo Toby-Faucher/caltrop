@@ -16,7 +16,7 @@ SGCONFIG = HERE / "sgconfig.yml"
 
 def base_id(rule_id):
     # Per-language and per-scope variants (no-fixed-sleep-py-tests-dir) share one allowlist id.
-    return re.sub(r"(-py|-ts|-js)?(-tests-dir)?$", "", rule_id)
+    return re.sub(r"(-py|-tsx|-ts|-js|-svelte)?(-tests-dir)?$", "", rule_id)
 
 
 RULES = {base_id(m[1]) for f in (HERE / "rules").rglob("*.yml")

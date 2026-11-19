@@ -1,0 +1,19 @@
+# Generated from rules/ts/no-fixed-sleep-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-fixed-sleep-tsx
+language: tsx
+severity: error
+message: "Await the operation or an event it emits; for UI use `waitFor`/`findBy*` or Playwright's auto-waiting `expect(..)`. For timers, use `vi.useFakeTimers()` and `vi.advanceTimersByTime`. To prove something did not happen, wait for a later sentinel instead."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  all:
+    - matches: tsx-sleep-call
+    - not:
+        matches: tsx-in-loop
+    - not:
+        matches: tsx-in-fake-timer-file

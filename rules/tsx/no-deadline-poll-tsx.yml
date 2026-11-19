@@ -1,0 +1,18 @@
+# Generated from rules/ts/no-deadline-poll-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-deadline-poll-tsx
+language: tsx
+severity: error
+message: "Wait on a signal (an event, a promise the code resolves, `expect.poll`/`waitFor` on the real condition), not a sleep in a loop."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  all:
+    - matches: tsx-sleep-call
+    - matches: tsx-in-loop
+    - not:
+        matches: tsx-in-fake-timer-file

@@ -1,0 +1,28 @@
+# Generated from rule-tests/ts/no-ignored-test-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-ignored-test-tsx
+valid:
+  - "it('runs', () => {});"
+  - "describe('suite', () => { it('x', () => {}); });"
+  - "test.skip(process.env.CI === 'true', 'needs a display');"
+  - "test.skip(({ browserName }) => browserName === 'webkit', 'flaky on webkit');"
+  - "it.skipIf(!hasDb)('x', () => {});"
+  - "const q = db.skip(10);"
+  - "cursor.skip(5).limit(2);"
+  - "it.only('x', () => {});"
+  - "steps.skip('reason');"
+invalid:
+  - "it.skip('renders', () => { render(<App />); });"
+  - "it.skip('x', () => {});"
+  - "test.skip('x', async () => {});"
+  - "describe.skip('suite', function () {});"
+  - "it.todo('handles errors');"
+  - "test.todo('later');"
+  - "xit('x', () => {});"
+  - "xdescribe('x', () => {});"
+  - "xtest('x', () => {});"
+  - "it.skip.each([1, 2])('x %i', (n) => {});"
+  - "test.describe.skip('x', () => {});"
+  - "test.fixme('x', async ({ page }) => {});"
+  - "test.skip();"
+  - "it.concurrent.skip('x', async () => {});"
+  - "it.skip('x', { timeout: 5 }, () => {});"

@@ -1,0 +1,96 @@
+# Generated from utils/ts/ts-sleep-call.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: tsx-sleep-call
+language: tsx
+# A fixed wait: a Promise whose executor only arms a setTimeout, a sleep/delay/wait/pause(ms) helper call,
+# timers/promises `await setTimeout(ms)`, or Playwright's `waitForTimeout`. A delay of 0 only yields to the
+# event loop, so it is skipped. Bare `setTimeout(cb, ms)` is skipped: in tests it usually drives a fake server.
+utils:
+  not-zero:
+    not:
+      regex: '^0$'
+  timeout-call:
+    kind: call_expression
+    all:
+      - has:
+          field: function
+          regex: '^((window|globalThis|global)\.)?setTimeout$'
+      - has:
+          field: arguments
+          all:
+            - has: { nthChild: 2, matches: not-zero }
+            - not: { has: { nthChild: 3 } }
+  helper-name:
+    regex: '^(sleep|delay|wait|pause)$'
+  sleep-helper:
+    any:
+      - kind: variable_declarator
+        has: { field: name, matches: helper-name }
+      - kind: function_declaration
+        has: { field: name, matches: helper-name }
+rule:
+  any:
+    - kind: new_expression
+      all:
+        - has: { field: constructor, regex: '^Promise$' }
+        - has:
+            field: arguments
+            has:
+              nthChild: 1
+              any:
+                - kind: arrow_function
+                - kind: function_expression
+              has:
+                field: body
+                any:
+                  - matches: timeout-call
+                  - kind: statement_block
+                    all:
+                      - has:
+                          nthChild: 1
+                          kind: expression_statement
+                          has: { matches: timeout-call }
+                      - not: { has: { nthChild: 2 } }
+        # The helper's own definition is not a wait; its call sites are.
+        - not:
+            inside: { stopBy: end, matches: sleep-helper }
+        # A timer that only calls the executor's reject is a timeout guard (Promise.race), not a wait.
+        - not:
+            has:
+              field: arguments
+              has:
+                nthChild: 1
+                all:
+                  - has: { field: parameters, has: { nthChild: 1, has: { field: pattern, pattern: $RES } } }
+                  - has: { field: parameters, has: { nthChild: 2, has: { field: pattern, pattern: $REJ } } }
+                  - has: { stopBy: end, kind: call_expression, has: { field: function, pattern: $REJ } }
+                  - not: { has: { stopBy: end, kind: call_expression, has: { field: function, pattern: $RES } } }
+    - kind: call_expression
+      all:
+        - has: { field: function, matches: helper-name }
+        - has:
+            field: arguments
+            all:
+              - has:
+                  nthChild: 1
+                  any:
+                    # Duration-looking names only, so `wait(page)` is not a sleep.
+                    - kind: identifier
+                      regex: '^(ms|millis|delay|timeout|interval|duration|time|ttl|wait|debounce|secs?|seconds|period)$|[a-z0-9](_?(Ms|MS|Millis|Delay|Timeout|Interval|Duration|Time|Ttl|TTL|Wait|Secs?|Seconds|Period)|_(ms|millis|delay|timeout|interval|duration|time|ttl|wait|secs?|seconds|period))$|^[A-Z][A-Z0-9_]*$'
+                    - { kind: number, matches: not-zero }
+                    - { kind: binary_expression, regex: '^[0-9_.\s*+]+$' }
+              - not: { has: { nthChild: 2 } }
+    # node:timers/promises
+    - kind: call_expression
+      inside: { kind: await_expression }
+      all:
+        - has: { field: function, regex: '^setTimeout$' }
+        - has:
+            field: arguments
+            all:
+              - has: { nthChild: 1, kind: number, matches: not-zero }
+              - not: { has: { nthChild: 2 } }
+    - kind: call_expression
+      has:
+        field: function
+        kind: member_expression
+        has: { field: property, regex: '^waitForTimeout$' }
