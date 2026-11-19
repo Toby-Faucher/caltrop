@@ -1,12 +1,75 @@
+<div align="center">
+
 <h1><img src="docs/assets/logo-lockup.png" alt="caltrop" width="520"></h1>
+
+**Fail CI when a test takes a shortcut that coding agents like.**
+
+[![CI](https://img.shields.io/github/actions/workflow/status/Toby-Faucher/caltrop/ci.yml?branch=main&label=CI)](https://github.com/Toby-Faucher/caltrop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Toby-Faucher/caltrop)](https://github.com/Toby-Faucher/caltrop/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![ast-grep 0.44.1](https://img.shields.io/badge/ast--grep-0.44.1-E5654B)](https://github.com/ast-grep/ast-grep/releases/tag/0.44.1)
+
+</div>
 
 caltrop fails your check when a test takes a shortcut that coding agents like. It covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped tests and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
 
-## Install
+## What it catches
 
-caltrop needs ast-grep 0.44.1 and Python 3.11 or newer (standard library only). Pin caltrop and ast-grep: see [Pinning](#pinning).
+A test an agent might write to make a failure go away:
 
-### GitHub Action
+```python
+import time
+from unittest import mock
+
+import pytest
+
+from app import worker
+
+
+def test_job_finishes():
+    worker.start()
+    time.sleep(2)
+    assert worker.done()
+
+
+@pytest.mark.skip("flaky on CI")
+def test_retry():
+    with mock.patch("app.worker.fetch"):
+        worker.retry()
+```
+
+`caltrop check` on a repo with only `tests/test_worker.py` exits 1:
+
+```
+tests/test_worker.py:2: no-mock-libs: Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine.
+tests/test_worker.py:11: no-fixed-sleep: Await the operation or an event it emits (`asyncio.Event`, a queue, a future). To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers or timestamps, inject the clock or freeze time (`time-machine`, `freezegun`).
+tests/test_worker.py:15: no-ignored-test: An ignored test never runs in CI, and an xfail passes whether or not it fails. Make it run (fixture, dependency or a CI job), or delete it.
+run caltrop baseline to adopt caltrop in this repo
+```
+
+With `--format github` the same hits become pull request annotations, one per line:
+
+```
+::error file=tests/test_worker.py,line=11,col=5::no-fixed-sleep: Await the operation or an event it emits ...
+```
+
+## Contents
+
+- [Quick start](#quick-start)
+- [Install](#install)
+- [Usage](#usage)
+  - [The allowlist](#the-allowlist)
+- [Rules](#rules)
+- [Known limits](#known-limits)
+- [Pinning](#pinning)
+- [Tests](#tests)
+- [Credit](#credit)
+- [License](#license)
+
+## Quick start
+
+Add the GitHub Action to a workflow:
 
 ```yaml
 steps:
@@ -17,6 +80,12 @@ steps:
 ```
 
 It installs ast-grep 0.44.1 with pipx and runs `caltrop check`. The action first ships in v1.1.0; v1.0.0 has no `action.yml`.
+
+If the repo already has hits, run [`caltrop baseline`](#usage) once and commit `caltrop.toml`.
+
+## Install
+
+caltrop needs ast-grep 0.44.1 and Python 3.11 or newer (standard library only). Pin caltrop and ast-grep: see [Pinning](#pinning). For the GitHub Action, see [Quick start](#quick-start).
 
 ### pre-commit
 
@@ -90,6 +159,8 @@ Rule ids are stable. They key the allowlist. Each language has its own rule file
 
 ### Rust
 
+<details><summary>9 Rust rules</summary>
+
 | id | Matches | Message |
 |---|---|---|
 | `no-fixed-sleep` | A sleep call in test code, outside a loop. | Await the operation or an event it emits. To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers, use `#[tokio::test(start_paused = true)]`. For distinct timestamps, inject the clock. |
@@ -102,6 +173,8 @@ Rule ids are stable. They key the allowlist. Each language has its own rule file
 | `no-silent-skip` | Inside a `#[test]` function: an early `return`, `return eprintln!(..)` or `return Ok(())` under `if let Err/None = ..`, under a negated or `is_err()`/`is_none()` check on a prerequisite (`exists`, `is_file`, `env::var`, `ready`, `*present`, `*available`, `UdpSocket`, `TcpListener`, `find_*` and similar), or in any `let .. else`. | A test must not return early when a prerequisite is missing. It reports a pass. Provide the prerequisite in CI, and fail with a clear message if it is absent. |
 | `no-fake-impls` | `impl SomeTrait for` a type named `Mock`, `Fake`, `Stub`, `Spy` or `Dummy` (alone or followed by a capital, digit or `_`, like `FakeClock`). Traits like `Debug`, `Display`, `Drop`, `Clone`, `Error` and `From<..>` are skipped, with or without a path. | Use the real implementation. A hand-written fake that stands in for a trait is a mock. A real local server on a socket is fine. |
 
+</details>
+
 "Test code" means a `.rs` file under a `tests/` directory, a file named `tests.rs` or `*_tests.rs`, or code inside a `mod` or `fn` whose attributes include `#[cfg(test)]`, `#[cfg(all(.., test, ..))]`, `#[test]` or `#[<path>::test]` (other attributes and comments may sit between them). `no-test-swap` skips both. Sleep calls are `sleep`, `sleep_until`, and those names under `thread::`, `std::thread::`, `time::`, `tokio::time::`, `task::` and `async_std::task::`.
 
 Name files that `#[cfg(test)] mod x;` pulls in `tests.rs` or `*_tests.rs` (for example `view_tests.rs`), so they are scanned.
@@ -109,6 +182,8 @@ Name files that `#[cfg(test)] mod x;` pulls in `tests.rs` or `*_tests.rs` (for e
 A loop search stops at closures, `async` blocks and function boundaries. A sleep inside `tokio::spawn(async move { .. })` counts as `no-fixed-sleep`, even if that block sits in a loop.
 
 ### Python
+
+<details><summary>9 Python rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -122,11 +197,15 @@ A loop search stops at closures, `async` blocks and function boundaries. A sleep
 | `no-fake-impls` | In test code, a `class` named `Mock`, `Fake`, `Stub`, `Spy` or `Dummy` (leading `_` allowed, alone or followed by a capital, digit or `_`), with or without a base class. Exception, Error and Warning subclasses are skipped. | Use the real implementation. A hand-written fake class that stands in for a real type is a mock, with or without a base class. A real local server on a socket is fine. |
 | `no-weak-result-assert` | `pytest.raises(Exception)`, `pytest.raises(BaseException)` or `self.assertRaises(Exception)` with no `match=`, unless it is `with .. as e:` and a later statement reads `e.value` or `e.exception`. | Assert which error. Raise and catch the specific exception type (`pytest.raises(ValueError, match=..)`), not `Exception`, which passes on any bug. |
 
+</details>
+
 "Test code" in Python means a file named `test_*.py`, `*_test.py` or `conftest.py`, or any file under a `tests/` or `test/` directory. `no-test-swap` checks only the other files; `no-mock-libs` checks every file.
 
 ### TypeScript, JavaScript and Svelte
 
 The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs`, `.mts` and `.cts` as TypeScript, `.tsx` and `.jsx` as tsx, and `.svelte` files as HTML, so the rules also run inside a component's `<script>` block. ast-grep treats tsx as its own language, so `rules/tsx/`, `utils/tsx/` and `rule-tests/tsx/` are generated copies of the `ts` ones: edit the `ts` file and run `scripts/gen-tsx.py`. A unit test fails if the copies are stale.
+
+<details><summary>10 TypeScript, JavaScript and Svelte rules</summary>
 
 | id | Matches | Message |
 |---|---|---|
@@ -141,6 +220,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 | `no-fake-impls` | In test code, a class named `Mock`/`Fake`/`Stub`/`Spy`/`Dummy` (alone, or followed by a capital, digit or `_`) with `implements` or `extends`. | Use the real implementation. A hand-written fake class that stands in for an interface or base class is a mock. A real local server on a socket is fine. |
 | `no-weak-result-assert` | `.toThrow()`/`.toThrowError()` with no argument, including `.rejects.`, but not `.not.toThrow()`; `assert.throws(fn)`/`assert.rejects(p)` with one argument. | Assert which error: pass the class, a message regex or a matcher, e.g. `toThrow(NotFoundError)`, `rejects.toThrow(/timed out/)`. A bare `toThrow()` passes on any error, including a TypeError from a typo. |
 
+</details>
+
 "Test code" here means a file matching `*.test.*` or `*.spec.*`, or anything under `__tests__/`, `tests/`, `test/` or `e2e/`. `no-test-swap` skips those plus `*.config.*`, `vitest.*` and `__mocks__/`. `no-mock-libs` checks every file.
 
 ## Known limits
@@ -149,13 +230,19 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Rust
 
+<details><summary>5 Rust limits</summary>
+
 - A test that runs itself as a child process and returns when its env var is unset is reported by `no-silent-skip`. Give it an allowlist entry.
 - Inside macro arguments (`tokio::select!`, `assert!(..)`), any `sleep(..)` or `<path>::sleep(..)` counts, whatever the path.
 - A bare `sleep()` counts whatever it was imported from.
 - `#[cfg(any(test, ..))]` does not mark test code, since that code also builds outside tests.
 - Test files not named `tests.rs` or `*_tests.rs` and not under `tests/` are only scanned inside inline test mods and test functions.
 
+</details>
+
 ### Python
+
+<details><summary>13 Python limits</summary>
 
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
 - A sleep wrapper defined in test code (`async def sleep(s): await asyncio.sleep(s)`) is reported once, at its definition; its callers are not.
@@ -171,7 +258,11 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `no-silent-skip` only sees a `return` whose nearest enclosing function is named `test*`, not one in a helper the test calls.
 - Wall-clock timing asserts (`assert time.monotonic() - start < 1.0`) are not detected.
 
+</details>
+
 ### TypeScript, JavaScript and Svelte
+
+<details><summary>11 TypeScript, JavaScript and Svelte limits</summary>
 
 - A `.svelte` `<script>` without `lang="ts"` is parsed as JavaScript, and only `no-test-swap` has a JavaScript copy (`no-test-swap-js.yml`). Test files are `.ts`/`.js`, so the test rules still apply to them.
 - Any file under a `test/`, `tests/` or `e2e/` directory counts as test code, so a production route such as `src/routes/test/+page.svelte` is skipped by `no-test-swap`.
@@ -184,6 +275,8 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - Sleeps in fixture app code under `test/` count too, e.g. a `+page.server.js` that delays a streamed promise on purpose.
 - Production code that is itself test tooling (a Vite plugin or test runner reading `VITEST`/`JEST_WORKER_ID`, a library's own WebSocket mock assigned to `globalThis.WebSocket`) is reported. Allowlist it.
 - `no-silent-skip` only checks prerequisite-style conditions, so `if (!el) return;` in a test is not caught.
+
+</details>
 
 ## Pinning
 
@@ -219,4 +312,4 @@ The approach is modelled on [landmines](https://github.com/interfere-inc/landmin
 
 ## License
 
-MIT. See LICENSE.
+MIT. See [LICENSE](LICENSE).
