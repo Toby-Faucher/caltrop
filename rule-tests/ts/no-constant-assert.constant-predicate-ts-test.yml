@@ -1,0 +1,17 @@
+id: no-constant-assert.constant-predicate-ts
+valid:
+  - "it('x', () => { expect(users.some((u) => u.admin)).toBe(true); });"
+  - "it('x', () => { const isAdmin = (u) => u.role === 'admin'; expect(users.some(isAdmin)).toBe(true); });"
+  - "it('x', () => { const check = vi.fn(() => true); expect(run(check)).toBe(1); });"
+  - "it('x', () => { spy.mockImplementation(() => true); expect(users.some((u) => u.ok)).toBe(true); });"
+  - "it('x', () => { const allow = () => true; expect(render({ filter: allow })).toBeTruthy(); });"
+  - "it('x', () => { expect(guard.check(() => true)).toBe(true); });"
+  - "it('x', () => { const copy = items.filter(() => true); expect(copy).toEqual(items); });"
+  - "it('x', () => { const isAdmin = (u) => true; expect(users.some(isOwner)).toBe(true); });"
+invalid:
+  - "it('x', () => { expect(users.some(() => true)).toBe(true); });"
+  - "it('x', () => { expect(users.every((u) => true)).toBe(true); });"
+  - "it('x', () => { expect(rows.find(() => false)).toBeUndefined(); });"
+  - "it('x', () => { assert.ok(rows.filter(() => true).length > 0); });"
+  - "it('x', () => { const isAdmin = (u) => true; expect(users.some(isAdmin)).toBe(true); });"
+  - "const isAdmin = (u: User) => true; it('x', () => { const admins = users.filter(isAdmin); expect(admins).toHaveLength(2); });"

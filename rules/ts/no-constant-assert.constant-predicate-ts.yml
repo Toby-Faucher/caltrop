@@ -1,0 +1,49 @@
+id: no-constant-assert.constant-predicate-ts
+language: typescript
+severity: error
+message: "This predicate always returns the same value, so the check never looks at the items. Write the condition the test means."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# `expect(users.some(() => true)).toBe(true)`, or `const isAdmin = (u) => true` later passed to `.some/.every/..`.
+# Only array-method predicates: `vi.fn(() => true)`, `mockImplementation(() => true)` and callbacks handed to the
+# code under test are skipped.
+utils:
+  constant-arrow:
+    kind: arrow_function
+    has: { field: body, any: [ { kind: "true" }, { kind: "false" } ] }
+  array-method:
+    kind: call_expression
+    has:
+      field: function
+      kind: member_expression
+      has: { field: property, regex: '^(some|every|find|findIndex|findLast|findLastIndex|filter)$' }
+rule:
+  any:
+    # Inline, in the subject of an assertion.
+    - matches: array-method
+      all:
+        - has: { field: arguments, has: { nthChild: 1, matches: constant-arrow } }
+        - inside:
+            stopBy: end
+            kind: arguments
+            inside:
+              kind: call_expression
+              has: { field: function, regex: '^(expect|assert)(\.\w+)*$' }
+    # A named constant predicate declared in the same file.
+    - matches: array-method
+      all:
+        - has: { field: arguments, has: { nthChild: 1, kind: identifier, pattern: $N } }
+        - inside:
+            stopBy: end
+            kind: program
+            has:
+              stopBy: end
+              kind: variable_declarator
+              all:
+                - has: { field: name, pattern: $N }
+                - has: { field: value, matches: constant-arrow }
