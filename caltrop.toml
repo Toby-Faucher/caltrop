@@ -1,0 +1,10 @@
+# caltrop checks its own repo in CI. Only the deliberate dirty fixture is allowed:
+# the action job runs caltrop on tests/fixtures/dirty and expects it to fail.
+
+[allow.no-assertion-free-test]
+# deliberate: the dirty fixture's test asserts nothing
+"tests/fixtures/dirty/tests/test_sleep.py" = 1
+
+[allow.no-fixed-sleep]
+# deliberate: the dirty fixture's test sleeps
+"tests/fixtures/dirty/tests/test_sleep.py" = 1
