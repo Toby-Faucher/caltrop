@@ -12,7 +12,7 @@
 
 </div>
 
-caltrop fails your check when a test takes a shortcut that coding agents like. It covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped tests and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
+caltrop covers Rust, Python, and TypeScript/JavaScript including React (`.tsx`/`.jsx`) and Svelte components. It flags sleeping instead of waiting for an event, polling until a deadline, swapping behaviour under test, mocks, skipped tests and retries. Each failure says what to do instead, so the agent can fix it in the same loop. It is built on [ast-grep](https://ast-grep.github.io) rules plus a small Python script, and it is modelled on [landmines](https://github.com/interfere-inc/landmines).
 
 ## What it catches
 
@@ -252,7 +252,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - `import unittest` followed by `unittest.mock.patch(..)` is not detected; `import unittest.mock` is.
 - `monkeypatch.setattr` counts even when it only patches a constant.
 - A settings attribute named lowercase `testing` (`settings.testing`) is not caught by `no-test-swap`.
-- FastAPI `app.dependency_overrides[..] = ..` is not flagged. It is the framework's injection seam: the endpoint takes the dependency as a parameter and the override passes a different one in, like a constructor argument, with no patching of module state. What the test passes in is still checked (a `Fake*` class is reported by `no-fake-impls`).
+- FastAPI `app.dependency_overrides[..] = ..` is not flagged: it passes a dependency in, it does not patch one. What it passes in is still checked (a `Fake*` class is reported by `no-fake-impls`).
 - `@pytest.mark.skipif` on the interpreter or platform (`sys.version_info < (3, 11)`, `sys.platform == "win32"`) is reported like any other skip. Allowlist it if your CI matrix runs the test elsewhere.
 - The `as e` exemption in `no-weak-result-assert` accepts any later read of `e.value`, including one that asserts nothing.
 - `no-silent-skip` only sees a `return` whose nearest enclosing function is named `test*`, not one in a helper the test calls.
@@ -270,7 +270,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 - In a Svelte template, `no-test-swap` reports one hit per run of text between tags, so two test checks there count once. Template text is matched by regex inside `{..}`, not parsed.
 - A spy assigned in a hook (`let s; beforeEach(() => { s = vi.spyOn(..) })`) and given a mock return value in another block is not caught by `no-mock-libs`.
 - The fake-timer skip is per file: a real sleep in a file where any test calls `useFakeTimers` is missed.
-- `vi.stubGlobal` of non-network globals (`localStorage`, `Date`) is not flagged. In a node test environment stubbing a missing global is how the code gets one at all, and in the corpus (SvelteKit, excalidraw) `stubGlobal` was used for build-time defines (`__SVELTEKIT_DEV__`) and for removing `document`/`window` to test the no-DOM path, neither a mock.
+- `vi.stubGlobal` of non-network globals (`localStorage`, `Date`) is not flagged. In a node test environment it is often the only way to provide a global, or to remove `document`/`window` to test the no-DOM path.
 - Playwright skips on a project setting (`test.skip(browserName !== 'chromium')`, `test.skip(!javaScriptEnabled)`) count as `no-silent-skip`, even when the test cannot apply to that project: the same line also hides a failure on one browser. Allowlist the deliberate ones.
 - Sleeps in fixture app code under `test/` count too, e.g. a `+page.server.js` that delays a streamed promise on purpose.
 - Production code that is itself test tooling (a Vite plugin or test runner reading `VITEST`/`JEST_WORKER_ID`, a library's own WebSocket mock assigned to `globalThis.WebSocket`) is reported. Allowlist it.

@@ -6,7 +6,7 @@ Report a false positive or a missed shortcut with the issue forms.
 
 1. Write the rule in `rules/` (Rust), `rules/python/` or `rules/ts/`. Name the file after its id, with a language suffix for Python and TypeScript: `no-fixed-sleep-py.yml`, `no-test-swap-ts.yml`, `no-test-swap-js.yml`. A Rust rule that needs a second copy for test files (a `files:` glob instead of a util match) gets `-tests-dir`: `no-fixed-sleep-tests-dir.yml`. `base_id()` in `caltrop` strips `-py`, `-ts`, `-js` and `-tests-dir`, so all the variants count under one allowlist id. A rule that means the same thing as an existing one must reuse its id; a new id is a new allowlist key for every consumer.
 2. Shared matchers go in `utils/` (Rust), `utils/python/` or `utils/ts/`. Prefix Python utils with `py-` and TypeScript utils with `ts-` (`py-sleep-call`, `ts-in-loop`): util ids are global.
-3. Add `rule-tests/<lang>/<rule-file-name>-test.yml` with the same `id`. It needs `invalid` cases and `valid` near-misses: code that looks like the shortcut but is fine (`sleep(0)`, a sleep inside a loop for the fixed-sleep rule, a helper named `sleep`). The near-misses are what keep false positives out.
+3. Add `rule-tests/<lang>/<rule-file-name>-test.yml` with the same `id`. It needs `invalid` cases and `valid` near-misses: code that looks like the shortcut but is fine (`sleep(0)`, a sleep inside a loop for the fixed-sleep rule, a helper named `sleep`). Without them, false positives get in.
 4. Run both test commands from the [README](README.md#tests):
    ```
    ast-grep test -c sgconfig.yml --skip-snapshot-tests
