@@ -1,0 +1,38 @@
+id: no-constant-assert-py
+language: python
+severity: error
+message: "This assertion cannot fail. Compare what the code returns with an expected value written in the test. Delete a placeholder test; do not keep it green."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  any:
+    # `assert True`, `assert 1`, `assert "text"`. `assert False` and `assert 0` are deliberate failures: skipped.
+    - kind: assert_statement
+      has:
+        nthChild: 1
+        any:
+          - kind: "true"
+          - { kind: integer, regex: '[1-9]' }
+          - { kind: string, not: { regex: '^[rRbBuUfF]*(""|'''')$' } }
+    # `assert x == x` on a name or attribute path. `assert f(x) == f(x)` is a determinism check: skipped.
+    - pattern: assert $A == $A
+    - pattern: assert $A == $A, $$$
+    - pattern: assert len($L) >= 0
+    - pattern: assert len($L) >= 0, $$$
+    - pattern: self.assertTrue(True)
+    - pattern: self.assertTrue(True, $$$)
+    # `assert <anything> or True`, matched on the tree: a text match also hits `or True` inside a lambda argument.
+    - kind: assert_statement
+      has:
+        nthChild: 1
+        kind: boolean_operator
+        all:
+          - has: { field: operator, regex: '^or$' }
+          - has: { field: right, kind: "true" }
+constraints:
+  A:
+    regex: '^\w+(\.\w+)*$'

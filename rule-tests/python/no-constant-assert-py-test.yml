@@ -1,0 +1,30 @@
+id: no-constant-assert-py
+valid:
+  - "def test_a():\n    assert f(1) == 2"
+  - "def test_a():\n    assert x == y"
+  # Determinism checks call the code twice.
+  - "def test_a():\n    assert boot_p(x) == boot_p(x)  # reproducible"
+  - "def test_a():\n    assert h(s).digest == h(s).digest"
+  # Deliberate failures.
+  - "def test_a():\n    assert False, 'unreachable'"
+  - "def test_a():\n    assert 0"
+  - "def test_a():\n    assert ''"
+  - "def test_a():\n    assert len(xs) >= 1"
+  - "def test_a():\n    assert len(xs) > 0"
+  - "def test_a():\n    assert c['refused'] == 0 or strict"
+  - "def test_a():\n    assert c['refused'] == 0 and True"
+  # `or True` inside a lambda argument is not the assertion.
+  - "def test_a():\n    assert pick(rows, key=lambda r: r.ok or True) == [1]"
+  - "def test_a(self):\n    self.assertTrue(ok)"
+invalid:
+  - "def test_a():\n    assert True"
+  - "def test_a():\n    assert True, 'placeholder'"
+  - "def test_a():\n    assert 1"
+  - "def test_a():\n    assert 'all good'"
+  - "def test_a():\n    assert x == x"
+  - "def test_a():\n    assert self.cfg.name == self.cfg.name, 'msg'"
+  - "def test_a():\n    assert len(rows) >= 0"
+  - "def test_a(self):\n    self.assertTrue(True)"
+  - "def test_a(self):\n    self.assertTrue(True, 'ok')"
+  - "def test_a():\n    assert c['refused_no_print_at_or_before_decision'] == 0 or True"
+  - "def test_a():\n    assert a or b or True, 'msg'"
