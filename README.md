@@ -22,11 +22,17 @@ ln -s ~/Projects/caltrop/caltrop ~/.local/bin/caltrop
 ## Usage
 
 ```
-caltrop check [REPO_DIR]      # default: current directory
-caltrop baseline [REPO_DIR]   # write caltrop.toml from the current hits
+caltrop check [--format text|github] [REPO_DIR]   # default: text, current directory
+caltrop baseline [REPO_DIR]                        # write caltrop.toml from the current hits
 ```
 
 `check` scans the repo, counts hits per rule and file, and compares them with `caltrop.toml` at the repo root. Exit codes: 0 pass, 1 violations, 2 usage or tool error (ast-grep missing, bad TOML).
+
+In GitHub Actions, `caltrop check --format github` prints each problem as an error annotation, so hits show up next to the code in the pull request. Allowance problems are annotated on `caltrop.toml`. The default is `--format text`. Exit codes are the same.
+
+```
+::error file=tests/a.rs,line=2,col=5::no-fixed-sleep: Await the operation or an event it emits. ...
+```
 
 Run `baseline` once, to adopt caltrop in a repo that already has hits. It overwrites `caltrop.toml` with the current counts. After that, fix hits instead of re-running it.
 
