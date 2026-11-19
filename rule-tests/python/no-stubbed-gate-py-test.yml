@@ -1,0 +1,24 @@
+id: no-stubbed-gate-py
+valid:
+  # The override returns a user: the real routes run with that user.
+  - "def test_a():\n    app.dependency_overrides[get_current_user] = lambda: User(role='viewer')\n    assert client.post('/x').status_code == 403"
+  - "def _as_viewer():\n    return User(role='viewer')\n\ndef test_a():\n    app.dependency_overrides[get_current_user] = _as_viewer\n    assert client.post('/x').status_code == 403"
+  # A real gate that checks something before it raises is not a stub.
+  - "def _gate(user=Depends(get_current_user)):\n    if not user.is_admin:\n        raise HTTPException(status_code=403)\n    return user\n\ndef test_a():\n    app.dependency_overrides[require_admin] = _gate\n    assert client.post('/x').status_code == 403"
+  # A raising stub for another error, to test the error handler: not an auth gate.
+  - "def _db_down():\n    raise HTTPException(status_code=503)\n\ndef test_a():\n    app.dependency_overrides[get_db] = _db_down\n    assert client.get('/x').status_code == 503"
+  # A raising stub in a test that asserts something other than the status the stub raised.
+  - "def _reject():\n    raise HTTPException(status_code=403, detail='no')\n\ndef test_a():\n    app.dependency_overrides[require_admin] = _reject\n    assert client.get('/public').status_code == 200"
+  - "def _reject():\n    raise HTTPException(status_code=403, detail='no')\n\ndef test_a():\n    app.dependency_overrides[require_admin] = _reject\n    assert client.post('/x').json() == {'error': 'no'}"
+  # Same name, but the raising def is not the override.
+  - "def test_a():\n    app.dependency_overrides[require_admin] = _allow\n    assert client.post('/x').status_code == 403\n\ndef _other():\n    raise HTTPException(status_code=403)"
+  - "def test_a():\n    with pytest.raises(HTTPException):\n        raise HTTPException(status_code=403)\n    assert True"
+invalid:
+  - "def test_non_admin_cannot_create():\n    def _reject():\n        raise HTTPException(status_code=403)\n    app.dependency_overrides[require_admin] = _reject\n    r = client.post('/x')\n    assert r.status_code == 403"
+  - "def _reject():\n    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Admin only')\n\ndef test_a():\n    app.dependency_overrides[require_admin] = _reject\n    assert client.post('/x').status_code == status.HTTP_403_FORBIDDEN"
+  - "async def _deny():\n    \"\"\"Not logged in.\"\"\"\n    raise fastapi.HTTPException(401)\n\nasync def test_a(client):\n    app.dependency_overrides[get_current_user] = _deny\n    r = await client.get('/me')\n    assert r.status_code == 401"
+  - "def test_a():\n    app.dependency_overrides[require_admin] = lambda: (_ for _ in ()).throw(HTTPException(status_code=403))\n    assert client.post('/x').status_code == 403"
+  - "def _reject():\n    raise HTTPException(status_code=403)\n\ndef test_a():\n    app.dependency_overrides.update({require_admin: _reject})\n    assert client.post('/x').status_code == 403"
+  - "class TestA:\n    def test_a(self, client_user):\n        def _reject():\n            raise HTTPException(status_code=403)\n        app.dependency_overrides[require_admin] = _reject\n        try:\n            self.assertEqual(client_user.post('/x').status_code, 403)\n        finally:\n            app.dependency_overrides.clear()"
+  # In a fixture: the tests that use it get the stub's 403 back.
+  - "@pytest.fixture\ndef readonly_client():\n    def _reject():\n        raise HTTPException(status_code=403)\n    app.dependency_overrides[require_admin] = _reject\n    with TestClient(app) as c:\n        yield c\n    app.dependency_overrides.clear()"

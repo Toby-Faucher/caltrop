@@ -1,0 +1,17 @@
+id: no-stubbed-gate.user-as-admin-py
+valid:
+  # Only the current user is overridden; the admin check stays real.
+  - "@pytest.fixture\ndef client_user():\n    app.dependency_overrides[get_current_user] = lambda: User(role='viewer')\n    with TestClient(app) as c:\n        yield c"
+  # An admin fixture may open the admin check.
+  - "@pytest.fixture\ndef client_admin():\n    app.dependency_overrides[require_admin] = lambda: ADMIN\n    with TestClient(app) as c:\n        yield c"
+  - "@pytest.fixture\ndef admin_user_client():\n    app.dependency_overrides[require_admin] = lambda: ADMIN\n    yield TestClient(app)"
+  # A raising stub is no-stubbed-gate-py's case, not this one.
+  - "@pytest.fixture\ndef client_user():\n    def _reject():\n        raise HTTPException(status_code=403)\n    app.dependency_overrides[require_admin] = _reject\n    yield TestClient(app)"
+  # Not a fixture.
+  - "def make_user_client():\n    app.dependency_overrides[require_admin] = lambda: USER\n    return TestClient(app)"
+  # A user-named test is not a fixture either: the test says what it does.
+  - "def test_user_sees_list():\n    app.dependency_overrides[require_admin] = lambda: USER\n    assert client.get('/x').status_code == 200"
+invalid:
+  - "@pytest.fixture()\ndef client_user():\n    app.dependency_overrides[get_current_user] = _as(NORMAL_USER)\n    app.dependency_overrides[require_admin] = _as(ADMIN_USER)\n    with TestClient(app) as c:\n        yield c\n    app.dependency_overrides.clear()"
+  - "@pytest.fixture\ndef user_client():\n    app.dependency_overrides[require_admin] = lambda: User(role='viewer')\n    yield TestClient(app)"
+  - "@fixture\nasync def non_admin_client():\n    app.dependency_overrides[ensure_admin] = get_current_user\n    yield client"

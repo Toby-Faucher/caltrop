@@ -1,0 +1,38 @@
+id: no-stubbed-gate.user-as-admin-py
+language: python
+severity: error
+message: "This fixture is named for a regular user but overrides the admin check so it lets every request through, so its tests run as admin. Override only the current user with a non-admin user and leave the admin check real."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+# `def client_user(): app.dependency_overrides[require_admin] = lambda: some_user`. A raising replacement is
+# left to no-stubbed-gate-py.
+rule:
+  all:
+    - pattern: $A.dependency_overrides[$K] = $V
+    - has: { field: left, has: { field: subscript, regex: 'admin' } }
+    - not: { has: { field: right, kind: lambda, has: { stopBy: end, regex: 'HTTPException' } } }
+    - not:
+        inside:
+          kind: module
+          stopBy: end
+          has:
+            stopBy: end
+            kind: function_definition
+            all:
+              - has: { field: name, pattern: $V }
+              - has: { field: body, has: { kind: raise_statement } }
+    - inside:
+        stopBy: end
+        kind: function_definition
+        all:
+          - has:
+              field: name
+              any:
+                - regex: '^non_?admin|_non_?admin(_|$)'
+                - regex: '(^|_)(user|member|regular|normal|readonly|read_only|viewer|guest|unprivileged)(_|$)'
+                  not: { regex: '(^|_)admin' }
+          - inside: { kind: decorated_definition, has: { kind: decorator, regex: 'fixture' } }

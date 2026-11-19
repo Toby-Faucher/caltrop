@@ -1,0 +1,70 @@
+id: no-stubbed-gate-py
+language: python
+severity: error
+message: "This test replaces the auth check with a stub that raises, then checks the stub raised. Override the user (the dependency that returns the current user) with a real non-admin user and let the real gate refuse."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+# A FastAPI dependency override whose replacement only raises a 401/403 HTTPException. Other overrides are
+# the framework's injection seam and are not flagged (README Known limits).
+utils:
+  # `HTTPException(status_code=403)`, `HTTPException(status.HTTP_401_UNAUTHORIZED, ..)`
+  denied-call:
+    kind: call
+    all:
+      - has: { field: function, regex: '(^|\.)HTTPException$' }
+      - has: { field: arguments, regex: '\b40[13]\b|HTTP_40[13]_' }
+  # `lambda: (_ for _ in ()).throw(HTTPException(403))`
+  raising-lambda:
+    kind: lambda
+    has: { stopBy: end, matches: denied-call }
+  # An assert on a 401/403 status: `assert r.status_code == 403`, `self.assertEqual(r.status_code, 403)`.
+  status-assert:
+    any:
+      - { kind: assert_statement, regex: '\b40[13]\b|HTTP_40[13]_' }
+      - kind: call
+        has: { field: function, regex: '(^|\.)assert\w*$' }
+        regex: '\b40[13]\b|HTTP_40[13]_'
+rule:
+  all:
+    - any:
+        # app.dependency_overrides[require_admin] = _reject
+        - pattern: $A.dependency_overrides[$K] = $V
+        # app.dependency_overrides.update({require_admin: _reject})
+        - kind: pair
+          has: { field: value, pattern: $V }
+          inside:
+            kind: call
+            stopBy: end
+            has: { field: function, regex: '\.dependency_overrides\.update$' }
+    - any:
+        - has: { field: right, matches: raising-lambda }
+        - has: { field: value, matches: raising-lambda }
+        # a `def` in this file whose body only raises (a gate that checks something first is not a stub)
+        - inside:
+            kind: module
+            stopBy: end
+            has:
+              stopBy: end
+              kind: function_definition
+              all:
+                - has: { field: name, pattern: $V }
+                - has: { field: body, has: { kind: raise_statement, has: { matches: denied-call } } }
+                - not: { has: { field: body, has: { stopBy: end, kind: return_statement } } }
+    - any:
+        # In a test: only when that test asserts a 401/403, i.e. it checks what the stub raised.
+        - inside:
+            stopBy: end
+            kind: function_definition
+            all:
+              - has: { field: name, regex: '^test' }
+              - has: { field: body, has: { stopBy: end, matches: status-assert } }
+        # In a fixture or helper: its tests get the stub's status back.
+        - not:
+            inside:
+              stopBy: end
+              kind: function_definition
+              has: { field: name, regex: '^test' }
