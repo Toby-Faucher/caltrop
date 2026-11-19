@@ -26,3 +26,24 @@ rule:
           has:
             kind: keyword_argument
             regex: '^match\s*='
+    # `with pytest.raises(Exception) as e:` then a later statement that reads `e.value` pins the error too.
+    - not:
+        inside:
+          kind: with_statement
+          stopBy: end
+          has:
+            kind: with_clause
+            has:
+              kind: with_item
+              has:
+                kind: as_pattern
+                has:
+                  field: alias
+                  pattern: $E
+          precedes:
+            stopBy: end
+            has:
+              stopBy: end
+              any:
+                - pattern: $E.value
+                - pattern: $E.exception

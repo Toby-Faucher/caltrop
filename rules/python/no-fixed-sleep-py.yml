@@ -9,7 +9,19 @@ files:
   - "**/tests/**"
   - "**/test/**"
 rule:
-  all:
-    - matches: py-sleep-call
-    - not:
-        matches: py-in-loop
+  any:
+    - all:
+        - matches: py-sleep-call
+        - not:
+            matches: py-in-loop
+    # A callback on a fixed delay is a sleep too. call_later(0, cb) is call_soon. It never blocks, so loops don't matter.
+    - kind: call
+      has:
+        field: function
+        regex: '(^|\.)(loop|get_running_loop\(\)|get_event_loop\(\))\.call_later$'
+      not:
+        has:
+          field: arguments
+          has:
+            nthChild: 1
+            regex: '^0(\.0*)?$'

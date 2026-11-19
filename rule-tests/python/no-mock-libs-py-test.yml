@@ -9,6 +9,7 @@ valid:
   - "def test_a(monkeypatch):\n    monkeypatch.syspath_prepend('x')"
   - "def test_a(httpserver):\n    httpserver.expect_request('/x').respond_with_json({})"
   - "def mock_data():\n    return {}"
+  - "def test_a(mocker):\n    mocker.patch.dict(os.environ, {'HTTP_PROXY': url})"
 invalid:
   - "from unittest.mock import MagicMock, patch"
   - "from unittest import mock"
@@ -22,3 +23,4 @@ invalid:
   - "def test_a(mocker):\n    spy = mocker.spy(app, 'send')"
   - "def test_a(monkeypatch):\n    monkeypatch.setattr(app, 'send', lambda *a: None)"
   - "def test_a(monkeypatch):\n    monkeypatch.setattr('app.mailer.send', fake)"
+  - "def test_a(mocker):\n    mocker.patch.dict(app.config, {'DEBUG': True})"

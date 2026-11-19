@@ -1,7 +1,7 @@
 id: py-sleep-call
 language: python
 # time/asyncio/trio/anyio .sleep(..), or a bare sleep(..) in a file that imports sleep from one of them.
-# sleep(0) only yields to the event loop, like tokio's yield_now, so it is skipped.
+# sleep(0) only yields to the event loop, like tokio's yield_now, so it is skipped, as is sleep(inf).
 rule:
   kind: call
   any:
@@ -22,4 +22,5 @@ rule:
   not:
     has:
       field: arguments
-      regex: '^\(\s*0(\.0*)?\s*\)$'
+      # sleep(inf) blocks until cancelled; it does not wait on time.
+      regex: '^\(\s*(0(\.0*)?|float\(\s*["'']inf["'']\s*\)|math\.inf)\s*\)$'
