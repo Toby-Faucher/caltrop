@@ -142,7 +142,8 @@ class CaltropTest(Fixture):
     def test_version_warning(self):
         fake = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, fake)
-        (fake / "ast-grep").write_text("#!/bin/sh\n[ \"$1\" = --version ] && echo 'ast-grep 0.1.0'\nexit 0\n")
+        (fake / "ast-grep").write_text("#!/bin/sh\n[ \"$1\" = --version ] && echo 'ast-grep 0.1.0'\n"
+                                       "echo effectiveRuleCount=999 >&2\n")
         (fake / "ast-grep").chmod(0o755)
         r = self.check(env={**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"})
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -298,6 +299,27 @@ class CaltropTest(Fixture):
         self.assertEqual(r.returncode, 2)
         self.assertIn("cargo install ast-grep", r.stderr)
 
+    def test_rules_not_loaded(self):
+        # A pre-commit virtualenv inside a clone whose ignore file is `*`: ast-grep skipped rules/ and passed.
+        self.write("tests/a.rs", SLEEP)
+        clone = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, clone)
+        subprocess.run(["git", "init", "-q", str(clone)], check=True)
+        (clone / ".gitignore").write_text("*\n")
+        src = Path(SCRIPT).parent
+        for d in ["rules", "utils"]:
+            shutil.copytree(src / d, clone / "venv" / d)
+        for f in ["caltrop", "sgconfig.yml"]:
+            shutil.copy(src / f, clone / "venv" / f)
+        copy = str(clone / "venv" / "caltrop")
+        self.assertEqual(subprocess.run([sys.executable, copy, "check", str(self.repo)], capture_output=True).returncode, 1)
+        # Some rules hidden, then all of them.
+        for ignore in ["!*\npython/\n", "*\n"]:
+            (clone / "venv" / "rules" / ".ignore").write_text(ignore)
+            r = subprocess.run([sys.executable, copy, "check", str(self.repo)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 2, ignore)
+            self.assertIn("rules in", r.stderr)
+
     def test_bad_toml(self):
         self.write("caltrop.toml", "[allow\nbroken")
         r = self.check()
@@ -375,7 +397,7 @@ class CaltropTest(Fixture):
         for out in ["not json", "{}"]:
             fake = Path(tempfile.mkdtemp())
             self.addCleanup(shutil.rmtree, fake)
-            (fake / "ast-grep").write_text(f"#!/bin/sh\necho '{out}'\n")
+            (fake / "ast-grep").write_text(f"#!/bin/sh\necho '{out}'\necho effectiveRuleCount=999 >&2\n")
             (fake / "ast-grep").chmod(0o755)
             r = self.check(env={**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"})
             self.assertEqual(r.returncode, 2, out)

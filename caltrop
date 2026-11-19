@@ -52,6 +52,8 @@ def scan(repo):
             print(f"caltrop: warning: expected ast-grep {AST_GREP}, found {v.strip() or 'unknown'}; counts may differ",
                   file=sys.stderr)
         p = subprocess.run(["ast-grep", "scan", "-c", str(SGCONFIG), "--json=stream",
+                            # Rule counts on stderr, so a scan that loaded no rules cannot pass.
+                            "--inspect", "summary",
                             # Vendored third-party code is not this repo's to judge.
                             "--globs", "!**/vendor/**",
                             # Installed dependencies, in case they are not gitignored.
@@ -61,8 +63,15 @@ def scan(repo):
     except FileNotFoundError:
         die(f"ast-grep not found; {INSTALL}")
     # ast-grep exits 1 when it finds error-level hits, so judge by output, not exit code.
+    err = "\n".join(x for x in p.stderr.splitlines() if not x.startswith("sg: ")).strip()
     if p.returncode and not p.stdout.strip():
-        die(f"ast-grep failed ({p.stderr.strip()}); {INSTALL}")
+        die(f"ast-grep failed ({err}); {INSTALL}")
+    loaded = re.search(r"effectiveRuleCount=(\d+)", p.stderr)
+    shipped = sum(1 for _ in (HERE / "rules").rglob("*.yml"))
+    if not loaded or int(loaded[1]) < shipped:
+        # e.g. a .gitignore of `*` above the install makes ast-grep skip rules/ (rules/.ignore guards that case).
+        die(f"ast-grep ran {loaded[1] if loaded else 'an unknown number'} of the {shipped} rules in {HERE / 'rules'}; "
+            "a .gitignore or .ignore above it may hide rules/ or utils/")
     hits, calls, helpers = {}, {}, set()
     try:
         for line in p.stdout.splitlines():
