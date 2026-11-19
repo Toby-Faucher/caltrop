@@ -15,8 +15,9 @@ SGCONFIG = HERE / "sgconfig.yml"
 
 
 def base_id(rule_id):
-    # Per-language and per-scope variants (no-fixed-sleep-py-tests-dir) share one allowlist id.
-    return re.sub(r"(-py|-tsx|-ts|-js|-svelte)?(-tests-dir)?$", "", rule_id)
+    # Per-language and per-scope variants (no-fixed-sleep-py-tests-dir) share one allowlist id, and so do
+    # cases that need their own message (no-weak-result-assert.catch-ts): the part after the dot is dropped.
+    return re.sub(r"(-py|-tsx|-ts|-js|-svelte)?(-tests-dir)?$", "", rule_id.split(".")[0])
 
 
 RULES = {base_id(m[1]) for f in (HERE / "rules").rglob("*.yml")
