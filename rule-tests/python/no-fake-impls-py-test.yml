@@ -1,0 +1,20 @@
+id: no-fake-impls-py
+valid:
+  - "class FakeError(Exception):\n    pass"
+  - "class MockError(httpx.HTTPError):\n    pass"
+  - "class Stubborn(Base):\n    pass"
+  - "class Mockingbird:\n    pass"
+  - "class TestAgainstFakeServer:\n    pass"
+  - "class RealClock(Clock):\n    pass"
+  - "def fake_clock():\n    return 1"
+invalid:
+  - "class FakeClock(Clock):\n    def now(self):\n        return 0"
+  - "class FakeClock:\n    def now(self):\n        return 0"
+  - "class _FakeClient:\n    pass"
+  - "class Fake:\n    pass"
+  - "class Fake_Store(Store):\n    pass"
+  - "class MockBackend(Backend, Generic[T]):\n    pass"
+  - "class StubPower(Protocol):\n    pass"
+  - "class SpyMailer(Mailer):\n    pass"
+  - "class Dummy2:\n    pass"
+  - "def test_a():\n    class FakeIndex:\n        pass"

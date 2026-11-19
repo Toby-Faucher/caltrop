@@ -1,0 +1,25 @@
+id: no-test-swap-ts
+language: typescript
+severity: error
+message: "Production code must behave the same under test. Pass the dependency in (a parameter, a context, a constructor argument) and give the test a real one. `dev`/`DEV`/`PROD` are fine; they are not test switches."
+# Outside test code and tool config (vite.config.ts may legitimately branch on VITEST).
+ignores:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+  - "**/*.config.*"
+  - "**/vitest.*"
+  - "**/__mocks__/**"
+rule:
+  any:
+    - kind: member_expression
+      regex: '^(import\.meta\.env|process\.env)\.(VITEST|VITEST_WORKER_ID|JEST_WORKER_ID)$'
+      # Reads only; a test runner setting its own flag is not a swap.
+      not: { inside: { kind: assignment_expression, field: left } }
+    - kind: binary_expression
+      any:
+        - regex: '^(import\.meta\.env\.MODE|process\.env\.NODE_ENV)\s*[!=]==?\s*[''"`]test[''"`]$'
+        - regex: '^[''"`]test[''"`]\s*[!=]==?\s*(import\.meta\.env\.MODE|process\.env\.NODE_ENV)$'

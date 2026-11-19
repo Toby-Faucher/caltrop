@@ -1,0 +1,22 @@
+id: no-mock-libs-py
+language: python
+severity: error
+message: "Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine."
+rule:
+  any:
+    - kind: import_statement
+      regex: '^import\s+(unittest\.mock|mock|pytest_mock)\b'
+    - kind: import_from_statement
+      regex: '^from\s+(unittest\.mock|mock|pytest_mock)\b|^from\s+unittest\s+import\b[^#]*\bmock\b'
+      # A sentinel is a marker object, not a mock.
+      not:
+        regex: '^from\s+(unittest\.mock|mock)\s+import\s+sentinel$'
+    # pytest-mock: mocker.patch, mocker.patch.object, mocker.Mock, mocker.spy.
+    - kind: call
+      has:
+        field: function
+        regex: '^mocker\.'
+    - kind: call
+      has:
+        field: function
+        regex: '^monkeypatch\.setattr$'

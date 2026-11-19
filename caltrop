@@ -1,19 +1,30 @@
 #!/usr/bin/env python3
-"""caltrop: keep AI-written Rust tests honest. See README.md."""
+"""caltrop: keep AI-written Rust, Python and TypeScript/Svelte tests honest. See README.md."""
+import configparser
 import json
 import re
+import shlex
 import subprocess
 import sys
 import tomllib
 from collections import Counter
 from pathlib import Path
 
-SGCONFIG = Path(__file__).resolve().parent / "sgconfig.yml"
-RULES = {
-    "no-fixed-sleep", "no-deadline-poll", "no-test-swap", "no-mock-crates", "no-test-retries",
-    "no-ignored-test", "no-weak-result-assert", "no-silent-skip", "no-fake-impls",
-}
+HERE = Path(__file__).resolve().parent
+SGCONFIG = HERE / "sgconfig.yml"
+
+
+def base_id(rule_id):
+    # Per-language and per-scope variants (no-fixed-sleep-py-tests-dir) share one allowlist id.
+    return re.sub(r"(-py|-ts|-js)?(-tests-dir)?$", "", rule_id)
+
+
+RULES = {base_id(m[1]) for f in (HERE / "rules").rglob("*.yml")
+         for m in [re.search(r"^id:\s*(\S+)", f.read_text(), re.M)] if m} | {"no-test-retries"}
 RETRY_MSG = "Make the test deterministic; a retry hides the flake."
+# Config file -> the section pytest reads its options from.
+PYTEST_CONFIGS = {"pytest.ini": "pytest", "tox.ini": "pytest", "setup.cfg": "tool:pytest"}
+SKIP_DIRS = {"vendor", "node_modules", "site-packages"}
 AST_GREP = "0.44.1"
 INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
 USAGE = "usage: caltrop {check|baseline} [REPO_DIR]\n       caltrop --help"
@@ -32,7 +43,10 @@ def scan(repo):
                   file=sys.stderr)
         p = subprocess.run(["ast-grep", "scan", "-c", str(SGCONFIG), "--json=stream",
                             # Vendored third-party code is not this repo's to judge.
-                            "--globs", "!**/vendor/**", "."],
+                            "--globs", "!**/vendor/**",
+                            # Installed dependencies, in case they are not gitignored.
+                            "--globs", "!**/node_modules/**",
+                            "--globs", "!**/site-packages/**", "."],
                            cwd=repo, capture_output=True, text=True)
     except FileNotFoundError:
         die(f"ast-grep not found; {INSTALL}")
@@ -43,7 +57,7 @@ def scan(repo):
     try:
         for line in p.stdout.splitlines():
             h = json.loads(line)
-            rule = h["ruleId"].removesuffix("-tests-dir")
+            rule = base_id(h["ruleId"])
             hits[(rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])] = h["message"]
     except (ValueError, KeyError, TypeError, AttributeError):
         die("unexpected ast-grep output; check the ast-grep version. " + INSTALL)
@@ -83,13 +97,62 @@ def retry_hits(repo):
     return hits
 
 
+def reruns(opts):
+    # pytest-rerunfailures: "--reruns 2", "--reruns=2", or the same as a TOML list.
+    tokens = shlex.split(opts) if isinstance(opts, str) else [str(t) for t in opts]
+    for i, t in enumerate(tokens):
+        val = t.removeprefix("--reruns=") if t.startswith("--reruns=") else (
+            tokens[i + 1] if t == "--reruns" and i + 1 < len(tokens) else None)
+        if val is not None and val.isdigit() and int(val) > 0:
+            return True
+    return False
+
+
+def option_line(text, key):
+    # First uncommented line naming the option, for the report; the parse above decides the hit.
+    for i, l in enumerate(text.splitlines(), 1):
+        if key in l and not l.lstrip().startswith(("#", ";")):
+            return i
+    return 1
+
+
+def pytest_retry_hits(repo):
+    hits = {}
+    for path in sorted(repo.rglob("*")):
+        rel = path.relative_to(repo)
+        if path.name not in (*PYTEST_CONFIGS, "pyproject.toml") or not path.is_file() or any(
+                part in SKIP_DIRS or part.startswith(".") for part in rel.parts[:-1]):
+            continue
+        text = path.read_text()
+        try:
+            if path.name == "pyproject.toml":
+                opts = tomllib.loads(text).get("tool", {}).get("pytest", {}).get("ini_options", {})
+            else:
+                cp = configparser.ConfigParser(interpolation=None)
+                cp.read_string(text)
+                sec = PYTEST_CONFIGS[path.name]
+                opts = dict(cp[sec]) if cp.has_section(sec) else {}
+        except (tomllib.TOMLDecodeError, configparser.Error):
+            continue  # not ours to validate; pytest reports a broken config itself
+        r = str(opts.get("reruns", "0")).strip()
+        if reruns(opts.get("addopts", "")):
+            hits[("no-test-retries", rel.as_posix(), option_line(text, "--reruns"), 0)] = RETRY_MSG
+        elif r.isdigit() and int(r) > 0:
+            hits[("no-test-retries", rel.as_posix(), option_line(text, "reruns"), 0)] = RETRY_MSG
+    return hits
+
+
+def all_hits(repo):
+    return {**scan(repo), **retry_hits(repo), **pytest_retry_hits(repo)}
+
+
 def counts(hits):
     return Counter((rule, file) for rule, file, *_ in hits)
 
 
 def baseline(repo):
     by_rule = {}
-    for (rule, file), n in sorted(counts({**scan(repo), **retry_hits(repo)}).items()):
+    for (rule, file), n in sorted(counts(all_hits(repo)).items()):
         by_rule.setdefault(rule, []).append((file, n))
     out = []
     for rule, files in by_rule.items():
@@ -113,7 +176,7 @@ def check(repo):
                 type(n) is int and n >= 0 for n in files.values())
             for files in allow.values())):
         die(f"{toml}: expected [allow.<rule>] tables of \"file\" = count (non-negative integers)")
-    hits = {**scan(repo), **retry_hits(repo)}
+    hits = all_hits(repo)
     have = counts(hits)
     problems = []
     for rule in allow:

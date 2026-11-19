@@ -4,3 +4,8 @@ utilDirs:
   - utils
 testConfigs:
   - testDir: rule-tests
+languageGlobs:
+  # Svelte: the html parser injects <script> blocks, so typescript rules match inside them.
+  html: ["*.svelte"]
+  # TypeScript's grammar parses plain JavaScript, so one rule set covers both.
+  typescript: ["*.js", "*.mjs", "*.cjs", "*.mts", "*.cts"]

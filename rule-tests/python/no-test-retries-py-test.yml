@@ -1,0 +1,13 @@
+id: no-test-retries-py
+valid:
+  - "def flaky(s, alarm):\n    raise RuntimeError"
+  - "def test_a(monkeypatch):\n    monkeypatch.setattr(esc, 'step', flaky)"
+  - "@pytest.mark.slow\ndef test_a():\n    pass"
+  - "@flakyness_report\ndef test_a():\n    pass"
+invalid:
+  - "@pytest.mark.flaky(reruns=3)\ndef test_a():\n    pass"
+  - "@pytest.mark.flaky\ndef test_a():\n    pass"
+  - "@flaky\ndef test_a():\n    pass"
+  - "@flaky(max_runs=3, min_passes=1)\ndef test_a():\n    pass"
+  - "pytestmark = pytest.mark.flaky(reruns=2)"
+  - "@pytest.mark.parametrize('x', [pytest.param(1, marks=pytest.mark.flaky(reruns=2))])\ndef test_a(x):\n    pass"

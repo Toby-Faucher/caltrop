@@ -1,0 +1,16 @@
+id: no-focused-test-ts
+language: typescript
+severity: error
+message: "`.only` silently skips every other test in the file. Remove it."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: '^((it|test|describe|suite|bench|context|specify)(\.(describe|concurrent|sequential|serial|parallel|shuffle))*\.only(\.(each|for))?|f(it|describe))$'

@@ -1,0 +1,17 @@
+id: no-ignored-test-py
+valid:
+  - "@pytest.mark.skipif(sys.platform == 'win32', reason='x')\ndef test_a():\n    pass"
+  - "@unittest.skipIf(x, 'y')\ndef test_a():\n    pass"
+  - "@pytest.mark.slow\ndef test_a():\n    pass"
+  - "def test_a():\n    parser.skip(3)"
+  - "def test_a():\n    assert opts.skip is False"
+invalid:
+  - "@pytest.mark.skip(reason='later')\ndef test_a():\n    pass"
+  - "@pytest.mark.skip\ndef test_a():\n    pass"
+  - "@pytest.mark.xfail(strict=False)\ndef test_a():\n    pass"
+  - "@unittest.skip('broken')\ndef test_a():\n    pass"
+  - "class T(unittest.TestCase):\n    @unittest.expectedFailure\n    def test_a(self):\n        pass"
+  - "pytestmark = pytest.mark.skip(reason='wip')"
+  - "pytestmark = [pytest.mark.asyncio, pytest.mark.xfail]"
+  - "from pytest import mark\n@mark.skip\ndef test_a():\n    pass"
+  - "@pytest.mark.parametrize('x', [1, pytest.param(2, marks=pytest.mark.xfail)])\ndef test_a(x):\n    pass"

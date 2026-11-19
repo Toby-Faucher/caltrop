@@ -1,0 +1,50 @@
+id: no-test-swap-py
+language: python
+severity: error
+message: "Production code must behave the same under test. Pass the dependency or setting in instead of checking whether a test is running."
+ignores:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  test-key:
+    kind: string
+    regex: '^[rRuU]?["''](PYTEST\w*|(IS_|IN_|RUNNING_|RUN_|UNDER_|UNIT_|APP_)?(TEST|TESTS|TESTING)(_MODE|_ENV)?|_called_from_test)["'']$'
+rule:
+  any:
+    # "pytest" in sys.modules, "unittest" in sys.modules, "pytest" in sys.argv[0].
+    - kind: comparison_operator
+      regex: '^[rRuU]?["''](pytest|unittest)["'']\s+(not\s+)?in\s+sys\.(modules|argv)\b'
+    - kind: call
+      regex: '^sys\.modules\.get\(\s*["''](pytest|unittest)["'']'
+    # os.getenv("TESTING"), os.environ.get("PYTEST_CURRENT_TEST"), environ["TEST"], "TESTING" in os.environ,
+    # app.config["TESTING"], hasattr(sys, "_called_from_test").
+    - matches: test-key
+      any:
+        - inside:
+            kind: argument_list
+            inside:
+              kind: call
+              has:
+                field: function
+                regex: '(^|\.)(getenv|environ\.get|hasattr|getattr)$'
+        - inside:
+            kind: subscript
+            has:
+              field: value
+              regex: '(?i)(^|\.)(environ|config|settings)$'
+        - inside:
+            kind: comparison_operator
+            regex: '\bin\s+(os\.)?environ$'
+    # settings.TESTING, settings.is_testing, sys._called_from_test.
+    - kind: attribute
+      has:
+        field: attribute
+        # Not lowercase `testing`: np.testing, pandas.testing and torch.testing are modules.
+        regex: '^(TESTING|IS_TESTING|is_testing|IN_TEST|in_test|RUNNING_TESTS|running_tests|_called_from_test)$'
+    # ENV == "test", settings.environment == "test", os.getenv("APP_ENV") != "testing", config["ENV"] == "test".
+    # Only env-style names: a value like Lightning's `stage == "test"` is runtime data, not a test switch.
+    - kind: comparison_operator
+      regex: '(?i)^[^=!]*(^|[.\[''"])(\w+_)?(env|environment)[''"\])]*\s*[=!]=\s*[rRuU]?["''](test|tests|testing)["'']$'

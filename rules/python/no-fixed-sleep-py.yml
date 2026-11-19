@@ -1,0 +1,15 @@
+id: no-fixed-sleep-py
+language: python
+severity: error
+message: "Await the operation or an event it emits (`asyncio.Event`, a queue, a future). To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers or timestamps, inject the clock or freeze time (`time-machine`, `freezegun`)."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  all:
+    - matches: py-sleep-call
+    - not:
+        matches: py-in-loop

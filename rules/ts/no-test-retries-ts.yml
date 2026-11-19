@@ -1,0 +1,68 @@
+id: no-test-retries-ts
+language: typescript
+severity: error
+message: "Make the test deterministic; a retry hides the flake."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+  - "**/vite*.config.*"
+  - "**/playwright*.config.*"
+  - "**/vitest.workspace.*"
+utils:
+  retry-pair:
+    kind: pair
+    all:
+      - has: { field: key, regex: '^[''"]?(retry|retries)[''"]?$' }
+      # Any non-zero literal, including process.env.CI ? 2 : 0.
+      - has: { field: value, regex: '\b0*[1-9]' }
+  config-call:
+    kind: call_expression
+    has: { field: function, regex: '^(defineConfig|defineProject|defineWorkspace|mergeConfig)$' }
+  default-export:
+    kind: export_statement
+    regex: '^export\s+default\b'
+  config-root:
+    any:
+      - matches: config-call
+      - matches: default-export
+rule:
+  any:
+    # Tool config, only where the runner reads it: vite/vitest `test: { retry }`, the top level of a
+    # Playwright config, or a Playwright `projects[]` entry. Plugin or proxy options named retries are not tests.
+    - matches: retry-pair
+      inside:
+        kind: object
+        any:
+          - inside:
+              kind: pair
+              has: { field: key, regex: '^[''"]?test[''"]?$' }
+              inside:
+                stopBy: end
+                matches: config-root
+          - inside: { kind: arguments, inside: { matches: config-call } }
+          - inside: { matches: default-export }
+          - inside:
+              kind: array
+              inside:
+                kind: pair
+                has: { field: key, regex: '^[''"]?projects[''"]?$' }
+                inside:
+                  stopBy: end
+                  matches: config-root
+    # it('x', { retry: 3 }, fn), describe('x', { retry: 3 }, ..), test.describe.configure({ retries: 2 }).
+    - matches: retry-pair
+      inside:
+        kind: object
+        inside:
+          kind: arguments
+          inside:
+            kind: call_expression
+            has: { field: function, regex: '^(it|test|describe|suite|bench|context|specify)(\.\w+)*$' }
+    - kind: call_expression
+      all:
+        - has: { field: function, regex: '^(this\.retries|jest\.retryTimes)$' }
+        - has: { field: arguments, has: { nthChild: 1, regex: '\b0*[1-9]' } }

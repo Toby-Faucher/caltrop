@@ -1,0 +1,25 @@
+id: py-sleep-call
+language: python
+# time/asyncio/trio/anyio .sleep(..), or a bare sleep(..) in a file that imports sleep from one of them.
+# sleep(0) only yields to the event loop, like tokio's yield_now, so it is skipped.
+rule:
+  kind: call
+  any:
+    - has:
+        field: function
+        regex: '^(time|asyncio|trio|anyio)\.sleep$'
+    - all:
+        - has:
+            field: function
+            regex: '^sleep$'
+        - inside:
+            kind: module
+            stopBy: end
+            has:
+              kind: import_from_statement
+              stopBy: end
+              regex: '^from\s+(time|asyncio|trio|anyio)\s+import\b[^#]*\bsleep\b'
+  not:
+    has:
+      field: arguments
+      regex: '^\(\s*0(\.0*)?\s*\)$'

@@ -1,0 +1,17 @@
+id: no-weak-result-assert-ts
+valid:
+  - "expect(() => f()).toThrow(TypeError);"
+  - "expect(() => f()).toThrow('bad input');"
+  - "await expect(p).rejects.toThrow(/timeout/);"
+  - "expect(() => f()).not.toThrow();"
+  - "await expect(p).resolves.not.toThrow();"
+  - "expect(() => f()).toThrowErrorMatchingInlineSnapshot();"
+  - "assert.throws(() => f(), /bad/);"
+  - "await assert.rejects(p, NotFound);"
+invalid:
+  - "expect(() => f()).toThrow();"
+  - "expect(f).toThrowError();"
+  - "await expect(p).rejects.toThrow();"
+  - "await expect(p).rejects.toThrowError();"
+  - "assert.throws(() => f());"
+  - "await assert.rejects(p);"

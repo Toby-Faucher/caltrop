@@ -1,0 +1,13 @@
+id: no-focused-test-ts
+valid:
+  - "it('only one', () => {});"
+  - "const only = list.only(1);"
+  - "it.skip('x', () => {});"
+  - "fitBounds(map);"
+invalid:
+  - "it.only('x', () => {});"
+  - "describe.only('x', () => {});"
+  - "test.describe.only('x', () => {});"
+  - "test.only.each([1])('x', () => {});"
+  - "fit('x', () => {});"
+  - "fdescribe('x', () => {});"

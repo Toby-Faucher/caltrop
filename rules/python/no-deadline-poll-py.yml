@@ -1,0 +1,14 @@
+id: no-deadline-poll-py
+language: python
+severity: error
+message: "Wait on a signal (`asyncio.Event`, `asyncio.Condition`, a queue, `threading.Event.wait()`), not on a deadline."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  all:
+    - matches: py-sleep-call
+    - matches: py-in-loop
