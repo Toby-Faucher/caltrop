@@ -1,0 +1,32 @@
+# Generated from rule-tests/ts/no-weak-result-assert.status-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-weak-result-assert.status-tsx
+valid:
+  - "expect(res.status).toBe(400);"
+  - "expect([400, 422]).toContain(res.status);"
+  - "expect(res.status).toBeOneOf([401, 403]);"
+  # Not a status.
+  - "expect([400, 500]).toContain(body.code);"
+  - "expect(items.length).toBeGreaterThanOrEqual(400);"
+  - "expect(res.headers['content-length']).toBeGreaterThan(400);"
+  # Parametrized expected status.
+  - "expect(res.status).toBe(expected);"
+  - "expect(expectedStatuses).toContain(res.status);"
+  # `< 500`, `>= 500` and `.not.toBe(500)` rule a crash out or expect one.
+  - "expect(res.status).toBeLessThan(500);"
+  - "expect(res.status).toBeGreaterThanOrEqual(500);"
+  - "expect(res.status).not.toBe(500);"
+  - "expect([500, 502]).not.toContain(res.status);"
+  # `.not.toBe(401)` checks that one layer (auth) let the request past.
+  - "expect(res.status).not.toBe(401);"
+  # Permissive success lists are not flagged (they do not accept a crash).
+  - "expect([200, 201]).toContain(res.status);"
+invalid:
+  - "expect([400, 500]).toContain(res.status);"
+  - "expect([422, 500]).toContain(response.status());"
+  - "expect([400, 404, 500]).toContain(res.statusCode);"
+  - "expect([400, 500]).toContain(status);"
+  - "expect(res.status).toBeOneOf([400, 500]);"
+  - "expect(status).toBeGreaterThanOrEqual(400);"
+  - "expect(res.status()).toBeGreaterThan(399);"
+  - "expect(res.status).not.toBe(200);"
+  - "expect(res.statusCode).not.toEqual(201);"

@@ -1,0 +1,66 @@
+id: no-weak-result-assert.status-py
+language: python
+severity: error
+message: "Assert the one status this request should return. A check that accepts 500 passes when the server crashes."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  status:
+    regex: '(^|\.)status(_code)?$'
+  # A 5xx literal or named constant: HTTPStatus.INTERNAL_SERVER_ERROR, status.HTTP_503_SERVICE_UNAVAILABLE.
+  five-xx:
+    regex: '^5\d\d$|HTTP_5\d\d|INTERNAL_SERVER_ERROR|NOT_IMPLEMENTED|BAD_GATEWAY|SERVICE_UNAVAILABLE|GATEWAY_TIMEOUT'
+  # `>= 400` lets a 500 through; `>= 500` and `< 500` do not.
+  below-500:
+    regex: '^[1-4]\d\d$|HTTP_[1-4]\d\d'
+  # `!= 200` lets a 500 through. `!= 401` is left alone: it checks that one layer (auth) let the request past.
+  success:
+    regex: '^2\d\d$|HTTP_2\d\d'
+  collection:
+    any: [ { kind: tuple }, { kind: list }, { kind: set } ]
+  with-5xx:
+    matches: collection
+    has: { matches: five-xx }
+  # `not in (200, 201)`
+  with-success:
+    matches: collection
+    has: { matches: success }
+    not: { has: { matches: five-xx } }
+rule:
+  any:
+    - kind: comparison_operator
+      # Directly asserted; `if r.status_code >= 400:` and `assert a and b` are left alone.
+      inside: { kind: assert_statement }
+      all:
+        - has: { nthChild: 1, matches: status }
+        # A chained `400 <= s < 500` has a third operand.
+        - not: { has: { nthChild: 3 } }
+        - any:
+            - all: [ { pattern: '$S in $C' }, { has: { nthChild: 2, matches: with-5xx } } ]
+            - all: [ { pattern: '$S not in $C' }, { has: { nthChild: 2, matches: with-success } } ]
+            - all:
+                - any: [ { pattern: '$S >= $N' }, { pattern: '$S > $N' } ]
+                - has: { nthChild: 2, matches: below-500 }
+            - all: [ { pattern: '$S != $N' }, { has: { nthChild: 2, matches: success } } ]
+    # unittest: self.assertIn(r.status_code, (400, 500)), assertGreaterEqual(.., 400), assertNotEqual(.., 200).
+    - kind: call
+      all:
+        - has: { field: function, regex: '^self\.(assertIn|assertNotIn|assertGreaterEqual|assertGreater|assertNotEqual)$' }
+        - has: { field: arguments, has: { nthChild: 1, matches: status } }
+        - any:
+            - all:
+                - has: { field: function, regex: 'assertIn$' }
+                - has: { field: arguments, has: { nthChild: 2, matches: with-5xx } }
+            - all:
+                - has: { field: function, regex: 'assertNotIn$' }
+                - has: { field: arguments, has: { nthChild: 2, matches: with-success } }
+            - all:
+                - has: { field: function, regex: '(Greater|GreaterEqual)$' }
+                - has: { field: arguments, has: { nthChild: 2, matches: below-500 } }
+            - all:
+                - has: { field: function, regex: 'NotEqual$' }
+                - has: { field: arguments, has: { nthChild: 2, matches: success } }
