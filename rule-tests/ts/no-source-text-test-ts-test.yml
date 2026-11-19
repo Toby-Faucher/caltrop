@@ -1,0 +1,25 @@
+id: no-source-text-test-ts
+valid:
+  - "const pkg = JSON.parse(readFileSync('package.json', 'utf8'));"
+  - "const doc = readFileSync(join(__dirname, 'README.md'), 'utf8');"
+  - "const rows = readFileSync('data.tsv', 'utf8');"
+  - "const input = readFileSync(join(__dirname, 'fixtures', 'input.ts'), 'utf8');"
+  - "const want = readFileSync(join(__dirname, '__snapshots__', 'out.js'), 'utf8');"
+  - "const contract = readFileSync(join(siteOutDir, 'contract.ts'), 'utf8');"
+  - "const gen = await readFile(path.join(tmpDir, 'client.ts'), 'utf8');"
+  - "const bundle = readFileSync('dist/index.js', 'utf8');"
+  - "vm.runInNewContext(readFileSync(new URL('../../static/sw.js', import.meta.url), 'utf8'), { self, URL, JSON });"
+  - "it('sw', () => { const code = readFileSync('static/sw.js', 'utf8'); vm.runInNewContext(code, ctx); });"
+  - "const run = new Function(readFileSync('lib/a.js', 'utf8'));"
+  - "new vm.Script(readFileSync('lib/a.js', 'utf8')).runInContext(ctx);"
+  - "const pin = createHash('sha256').update(readFileSync('src/a.ts')).digest('hex');"
+  # Known limit: a path held in a variable is not seen.
+  - "const p = join(__dirname, 'flow-runner.ts'); const src = readFileSync(p, 'utf8');"
+invalid:
+  - "const src = readFileSync(`${__dirname}/flow-runner.ts`, 'utf8'); expect(src.indexOf('a')).toBeLessThan(src.indexOf('b'));"
+  - "const src = readFileSync(new URL('./PadDiagram.svelte', import.meta.url), 'utf8');"
+  - "const source = fs.readFileSync(path.join(__dirname, '..', 'session', 'SessionManager.ts'), 'utf-8');"
+  - "const s = await readFile('src/app.js', 'utf8');"
+  - "const s = await fs.promises.readFile(\"src/App.vue\", 'utf8');"
+  - "const s = await fsp.readFile(resolve(__dirname, 'server.mjs'), 'utf8');"
+  - "it('x', () => { const code = readFileSync('src/a.ts', 'utf8'); vm.runInNewContext(other, ctx); expect(code).toMatch(/x/); });"

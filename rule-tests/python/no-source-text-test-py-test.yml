@@ -1,0 +1,25 @@
+id: no-source-text-test-py
+valid:
+  - "data = json.load(open('data.json'))"
+  - "text = Path('README.md').read_text()"
+  - "with open('pkg/mod.py', 'w') as f:\n    f.write(src)"
+  - "src = (tmp_path / 'mod.py').read_text()"
+  - "src = (FIXTURES / 'input.py').read_text()"
+  - "src = (out_dir / 'client.ts').read_text()"
+  - "exec(Path('scripts/x.py').read_text(), ns)"
+  - "pin = hashlib.sha256(Path('tools/x.py').read_bytes()).hexdigest()"
+  - "pin = sha(inspect.getsource(mod.f).encode())"
+  - "assert inspect.getsource(vendored.f) == inspect.getsource(original.f)"
+  - "(td / 'launcher.py').write_text((MF / 'launcher.py').read_text())"
+  - "obj = inspect.getmodule(f)"
+  # Known limit: a path held in a variable is not seen.
+  - "p = REPO / 'tools' / 'x.py'\nsrc = p.read_text()"
+invalid:
+  - "src = inspect.getsource(F.main)\nassert src.index('a') < src.index('b')"
+  - "lines, _ = inspect.getsourcelines(f)"
+  - "src = getsource(f)"
+  - "src = (REPO / 'tools' / 'arena_rule_l1.py').read_text()"
+  - "src = Path('web/src/App.svelte').read_text()"
+  - "with open('app/main.py') as f:\n    assert 'retry' in f.read()"
+  - "with open(os.path.join(ROOT, 'src', 'lib.rs'), 'r') as f:\n    s = f.read()"
+  - "tree = ast.parse((REPO / 'tools' / 'hv4_read.py').read_text())"

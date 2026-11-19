@@ -1,0 +1,41 @@
+id: no-source-text-test-py
+language: python
+severity: error
+message: "Test what the code does, not how its source reads. Call it and assert on the result. Reading a source file or `inspect.getsource` passes whatever the code does at run time."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  kind: call
+  any:
+    - has: { field: function, regex: '^(inspect\.)?getsource(lines)?$' }
+    - all:
+        - any:
+            - has: { field: function, regex: '^(io\.)?open$' }
+            - has: { field: function, kind: attribute, regex: '\.read_(text|bytes)$' }
+        # A source extension closing a string literal in the call.
+        - regex: '\.(py|ts|tsx|js|jsx|mjs|cjs|svelte|vue|rs)[''"]'
+        # Fixture, golden and snapshot files are inputs or expected outputs, not the code under test.
+        - not: { regex: '(?i)fixtures?\b|testdata|golden|snapshots?\b|expected' }
+        # Output of a code generator or build (tmp_path, out_dir, dist/): reading it checks the generator's result.
+        - not:
+            regex: '\b(tmp|temp)\w*|\b(out|output|dist|build|dest|gen|generated)(_?dir|_?path|_?root|Dir|Path|Root)?\b|[a-z0-9](Out|Output|Tmp|Temp|Dist|Build|Dest|Gen|Generated)(Dir|Path|Root|[A-Z_]|\b)'
+        # open(path, "w"): the test writes a module, it does not read one.
+        - not: { has: { field: arguments, has: { nthChild: 2, regex: '^[rbuf]*[''"][^''"]*[wax]' } } }
+  not:
+    any:
+      - inside:
+          stopBy: end
+          kind: call
+          # exec(Path("x.py").read_text()) runs the code; dst.write_text(src.read_text()) copies it to run it.
+          # A hash pin (hashlib.sha256(p.read_bytes())) guards the bytes, it does not claim behaviour.
+          has:
+            field: function
+            regex: '^(exec|compile|eval)$|\.(write_text|write_bytes)$|hashlib|(^|\.)(sha\d*\w*|md5|blake2\w*|\w*hash\w*|\w*digest)$'
+      # getsource(vendored.f) == getsource(original.f): a parity check between two copies.
+      - inside:
+          kind: comparison_operator
+          regex: '(?s)getsource.*(==|!=).*getsource'
