@@ -7,6 +7,39 @@ valid:
   - "class TestAgainstFakeServer:\n    pass"
   - "class RealClock(Clock):\n    pass"
   - "def fake_clock():\n    return 1"
+  # Pytest test classes and helpers at module level are not fakes.
+  - "class TestMailer:\n    def test_send(self):\n        assert True"
+  - "class Helper:\n    def build(self):\n        return 1"
+  # A base that only contains a fake word is not a fake base.
+  - "class Bird(Mockingbird):\n    pass"
+  - "class Provider(FakerProvider):\n    pass"
+  # Failure words: a pytest test class, an exception, or a word that only starts with one.
+  - "class TestFlakyRetry:\n    def test_a(self):\n        assert True"
+  - "class _Crash(BaseException):\n    pass"
+  - "class BrokenLinkError(Exception):\n    pass"
+  - "class Boomerang:\n    pass"
+  - "class Alwayson:\n    pass"
+  # Exception types defined in a test are not stand-ins.
+  - "def test_a():\n    class MyErr(Exception):\n        def __str__(self):\n            return 'x'"
+  - "def test_a():\n    class Boom(ValueError):\n        def __str__(self):\n            return 'x'"
+  # A subclass of a real class in a test: an extension point under test or an instrumented
+  # real object. Skipped; a fake that subclasses an abstract base is missed (README Known limits).
+  - "def test_send_once():\n    class CountingMailer(SmtpMailer):\n        def send(self, msg):\n            self.calls += 1\n            return super().send(msg)"
+  - "def test_route():\n    class TimedRoute(APIRoute):\n        def get_route_handler(self):\n            return super().get_route_handler()"
+  # Only dunder methods: a callable or iterable input, not a stand-in.
+  - "def test_a():\n    class Content:\n        def __iter__(self):\n            yield b'x'"
+  - "def test_a():\n    class Missing:\n        def __bool__(self):\n            return False"
+  # Plain data defined in a test.
+  - "def test_a():\n    class Color(Enum):\n        RED = 1\n        def label(self):\n            return 'r'"
+  - "def test_a():\n    class Row(TypedDict):\n        id: int"
+  - "def test_a():\n    @dataclass\n    class Row:\n        id: int\n        def key(self):\n            return self.id"
+  - "def test_a():\n    @dataclasses.dataclass(frozen=True)\n    class Row:\n        id: int\n        def key(self):\n            return self.id"
+  - "def test_a():\n    class Point(NamedTuple):\n        x: int\n        def norm(self):\n            return self.x"
+  - "def test_a():\n    class Payload(BaseModel):\n        name: str\n        def upper(self):\n            return self.name"
+  # A class with no methods in a test is a namespace, not an implementation.
+  - "def test_a():\n    class Cfg:\n        debug = True"
+  # A class in a helper or fixture is not in a test function.
+  - "def make_mailer():\n    class Down:\n        def send(self):\n            raise OSError"
 invalid:
   - "class FakeClock(Clock):\n    def now(self):\n        return 0"
   - "class FakeClock:\n    def now(self):\n        return 0"
@@ -18,3 +51,20 @@ invalid:
   - "class SpyMailer(Mailer):\n    pass"
   - "class Dummy2:\n    pass"
   - "def test_a():\n    class FakeIndex:\n        pass"
+  # Subclass of a fake, whatever its own name.
+  - "class SecondSendRaises(FakeMailer):\n    def send(self):\n        raise OSError"
+  - "class PartialOutage(FakeMailer):\n    pass"
+  - "class Flaky(fakes.FakeMailer):\n    pass"
+  - "class Slow(Base, _StubClock):\n    pass"
+  # A class with a method defined in a test function is an ad-hoc fake.
+  - "def test_retry():\n    class Boom:\n        def send(self, msg):\n            raise OSError"
+  - "class TestMailer:\n    def test_retry(self):\n        class AlwaysDown:\n            def send(self, msg):\n                raise OSError"
+  - "async def test_x():\n    class Recorder:\n        async def send(self, msg):\n            pass"
+  - "def test_x():\n    class Clock:\n        @staticmethod\n        def now():\n            return 0"
+  # Named for the failure it fakes.
+  - "class FlakyGateway:\n    def send(self, msg):\n        raise OSError"
+  - "class _FlakyStore:\n    pass"
+  - "class OneBrokenStore(Store):\n    pass"
+  - "class AlwaysDown:\n    def send(self, msg):\n        return False"
+  - "class NeverReady:\n    pass"
+  - "class FailingClock(Clock):\n    pass"

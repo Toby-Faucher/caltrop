@@ -8,11 +8,43 @@ files:
   - "**/conftest.py"
   - "**/tests/**"
   - "**/test/**"
+utils:
+  fake-name:
+    regex: '^_*(Mock|Fake|Stub|Spy|Dummy)([A-Z_0-9]|$)'
 rule:
   kind: class_definition
-  has:
-    field: name
-    regex: '^_*(Mock|Fake|Stub|Spy|Dummy)([A-Z_0-9]|$)'
+  any:
+    # Named like a fake.
+    - has: { field: name, matches: fake-name }
+    # Named for the failure it fakes: FlakyGateway, _BrokenStore, AlwaysDown, NeverReady. Not a Test* class.
+    - has:
+        field: name
+        regex: '^_*(([A-Z][a-z0-9]*)*(Flaky|Failing|Broken|Crash|Crashing|Boom)|Always|Never)([A-Z0-9_]|$)'
+        not: { regex: '^_*Test' }
+    # Subclasses a fake: class SecondSendRaises(FakeMailer), class X(fakes.FakeMailer).
+    - has:
+        field: superclasses
+        has:
+          any:
+            - { kind: identifier, matches: fake-name }
+            - { kind: attribute, has: { field: attribute, matches: fake-name } }
+    # Defined in a test function, with no base class and a named method: an ad-hoc duck-typed fake
+    # (def test_x(): class Boom: def send(..)). A subclass of a real class (an extension point, an
+    # instrumented real object) and a dunder-only class (a callable, an iterable input) are skipped.
+    - all:
+        - matches: py-in-test-fn
+        - not: { has: { field: superclasses, kind: argument_list } }
+        - has:
+            field: body
+            has:
+              any:
+                - { kind: function_definition, has: { field: name, kind: identifier, not: { regex: '^__\w+__$' } } }
+                - { kind: decorated_definition, has: { field: definition, has: { field: name, kind: identifier, not: { regex: '^__\w+__$' } } } }
+        - not:
+            # Plain data: dataclasses and attrs classes.
+            inside:
+              kind: decorated_definition
+              has: { kind: decorator, regex: '^@([\w.]+\.)?(dataclass|define|frozen|s|attrs)\b' }
   not:
     # A test-only exception type is not a stand-in for a real one.
     has:

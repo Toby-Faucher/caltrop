@@ -10,10 +10,34 @@ files:
   - "**/test/**"
   - "**/e2e/**"
 rule:
-  any:
-    - kind: class_declaration
-    - kind: class
-    - kind: abstract_class_declaration
   all:
-    - has: { field: name, regex: '^(Mock|Fake|Stub|Spy|Dummy)([A-Z0-9_]|$)' }
-    - has: { kind: class_heritage }
+    - any:
+        - kind: class_declaration
+        - kind: class
+        - kind: abstract_class_declaration
+    - any:
+        # Named like a fake, with implements or extends.
+        - all:
+            - has: { field: name, regex: '^(Mock|Fake|Stub|Spy|Dummy)([A-Z0-9_]|$)' }
+            - has: { kind: class_heritage }
+        # Named for the failure it fakes (FlakyApi, AlwaysDown), with implements, extends or a method.
+        - all:
+            - has: { field: name, regex: '^(([A-Z][a-z0-9]*)*(Flaky|Failing|Broken|Crash|Crashing|Boom)|Always|Never)([A-Z0-9_]|$)' }
+            - any:
+                - has: { kind: class_heritage }
+                - has: { field: body, has: { kind: method_definition, not: { has: { field: name, regex: '^constructor$' } } } }
+            - not: { has: { field: name, regex: '(Error|Exception)$' } }
+        # Extends a fake, whatever its own name: class SecondSendRaises extends FakeClient.
+        - has:
+            kind: class_heritage
+            has:
+              kind: extends_clause
+              has: { field: value, regex: '(^|\.)(Mock|Fake|Stub|Spy|Dummy)([A-Z0-9_]|$)' }
+        # Declared in a test callback, with a method and no extends: an ad-hoc fake
+        # (it('x', () => { class Boom { send() {..} } })). A subclass of a real class is skipped.
+        - all:
+            - matches: ts-in-test-body
+            - has:
+                field: body
+                has: { kind: method_definition, not: { has: { field: name, regex: '^constructor$' } } }
+            - not: { has: { kind: class_heritage, has: { kind: extends_clause } } }
