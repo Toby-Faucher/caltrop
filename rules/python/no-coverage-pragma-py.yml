@@ -2,7 +2,20 @@ id: no-coverage-pragma-py
 language: python
 severity: error
 message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
-# Production code too: that is where coverage exclusions live. No files: glob.
+# Production code: that is where coverage exclusions live. Test code is skipped (same globs as the test rules):
+# a coverage threshold protects the code under test, not the tests.
+ignores:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+utils:
+  # raise AssertionError(..) or assert False: a marker for code that must never run.
+  unreachable:
+    any:
+      - { kind: raise_statement, regex: '^raise\s+AssertionError\b' }
+      - { kind: assert_statement, regex: '^assert\s+(False|0)\b' }
 rule:
   kind: comment
   # coverage.py's own default exclude (no cover) and partial-branch (no branch) regexes, 7.17.3 config.py.
@@ -27,3 +40,17 @@ rule:
                     - kind: comment
                     - kind: expression_statement
                       regex: '(?s)^(\.\.\.|[rRuU]?("""|''''''|"|'').*)$'
+      # An unreachable marker: `raise AssertionError(..)  # pragma: no cover`, or a block that only holds one
+      # (`else:  # pragma: no cover` over `assert False`).
+      - follows: { matches: unreachable }
+      - inside:
+          # Not on an `if` with an else/elif: the pragma would hide those branches too.
+          not: { has: { field: alternative, any: [ { kind: else_clause }, { kind: elif_clause } ] } }
+          has:
+            kind: block
+            not:
+              has:
+                not:
+                  any:
+                    - kind: comment
+                    - matches: unreachable

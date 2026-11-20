@@ -6,6 +6,11 @@ valid:
   - "class P(Protocol):\n    def f(self) -> int: ...  # pragma: no cover"
   - "class P(Protocol):\n    def f(  # pragma: no cover - Protocol stub\n        self,\n    ) -> int: ..."
   - "class P(Protocol):\n    def f(self) -> int:  # pragma: no cover\n        \"\"\"Doc.\"\"\"\n        ..."
+  # An unreachable marker: the excluded line can only fail the test.
+  - "def on_call():  # pragma: no cover\n    raise AssertionError('must not be called')"
+  - "def on_call():\n    raise AssertionError('must not be called')  # pragma: no cover"
+  - "if x:\n    y()\nelse:  # pragma: no cover\n    assert False, 'unreachable'"
+  - "with pytest.raises(E):\n    f()\n    raise AssertionError  # pragma: no cover"
   # Not a pragma.
   - "x = 1  # no cover needed here"
   - "# see the pragma docs"
@@ -19,3 +24,7 @@ invalid:
   - "if __name__ == '__main__':  # pragma: no cover\n    main()"
   - "if TYPE_CHECKING:\n    import x\nelse:  # pragma: no cover\n    x = None"
   - "class P(Protocol):\n    def f(self) -> int:  # pragma: no cover\n        raise NotImplementedError"
+  # Real work next to the marker, or a branch beside it, is not unreachable.
+  - "def on_call():  # pragma: no cover\n    log()\n    raise AssertionError('x')"
+  - "if x:  # pragma: no cover\n    raise AssertionError\nelse:\n    y()"
+  - "except OSError:\n    raise ValueError('x')  # pragma: no cover"

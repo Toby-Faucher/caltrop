@@ -3,6 +3,14 @@ language: javascript
 severity: error
 message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
 # Plain <script> in .svelte is injected as javascript; .js files are already typescript (sgconfig), so this only adds Svelte components.
+# Test code is skipped (same globs as the test rules): a coverage threshold protects the code under test.
+ignores:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
 rule:
   kind: comment
   # The ignore hints istanbul, c8, vitest's v8 provider and node --test honour. A start/stop or disable/enable

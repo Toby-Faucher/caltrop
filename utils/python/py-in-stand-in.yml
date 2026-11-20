@@ -1,0 +1,38 @@
+id: py-in-stand-in
+language: python
+# The nearest enclosing function is a stand-in's code that the code under test calls: a method of a class that
+# is not a test class, or a nested def that is passed on rather than called by the function that defines it
+# (`handler=never_answers`). Tests, fixtures, hooks, and a def that sits in a loop do not count.
+rule:
+  inside:
+    kind: function_definition
+    stopBy:
+      any:
+        - kind: function_definition
+        - kind: lambda
+    all:
+      - has: { field: name, pattern: $FN, not: { regex: '^(test|setup|teardown|setUp|tearDown|asyncSetUp|asyncTearDown|pytest_)' } }
+      - not:
+          inside: { kind: decorated_definition, has: { kind: decorator, regex: '^@([\w.]+\.)?fixture\b' } }
+      - not: { matches: py-in-loop }
+      - any:
+          # A method of a non-test class.
+          - inside:
+              kind: block
+              inside: &stand-in-class
+                kind: class_definition
+                not:
+                  any:
+                    - has: { field: name, regex: '^Test' }
+                    - has: { field: superclasses, regex: 'TestCase\b' }
+          - inside:
+              kind: decorated_definition
+              inside: { kind: block, inside: *stand-in-class }
+          # A nested def the enclosing function never calls itself.
+          - inside:
+              kind: function_definition
+              stopBy: end
+              not:
+                has:
+                  field: body
+                  has: { stopBy: end, kind: call, has: { field: function, pattern: $FN } }

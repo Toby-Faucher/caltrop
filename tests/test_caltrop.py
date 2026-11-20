@@ -403,20 +403,20 @@ class CaltropTest(Fixture):
         # Plain <script> is JavaScript, and only no-test-swap has a JavaScript copy, so tests/B.svelte is quiet.
         self.assert_hits("no-fixed-sleep", ts, ["tests/A.svelte"], [])
 
-    def test_coverage_pragma_py_everywhere(self):
-        # Production and test code alike; vendored code skipped.
+    def test_coverage_pragma_py_production_code(self):
+        # Production code; test code and vendored code skipped.
         self.assert_hits("no-coverage-pragma", "def main():  # pragma: no cover\n    run()\n",
-                         ["app/mod.py", "tests/test_a.py"], ["vendor/x.py", "node_modules/p/x.py"])
+                         ["app/mod.py"], ["tests/test_a.py", "app/conftest.py", "vendor/x.py", "node_modules/p/x.py"])
 
-    def test_coverage_pragma_ts_everywhere(self):
-        # Every TS/JS flavour and both Svelte script langs; vendored code skipped.
-        for f in ["src/a.ts", "src/b.js", "src/c.tsx", "src/a.test.ts", "node_modules/p/a.js"]:
+    def test_coverage_pragma_ts_production_code(self):
+        # Every TS/JS flavour and both Svelte script langs; test code and vendored code skipped.
+        for f in ["src/a.ts", "src/b.js", "src/c.tsx", "src/a.test.ts", "src/__tests__/d.ts", "node_modules/p/a.js"]:
             self.write(f, "/* istanbul ignore next */\nexport const a = 1;\n")
         self.write("src/A.svelte", '<script lang="ts">\n/* v8 ignore next */\nconst a = 1;\n</script>\n')
         self.write("src/B.svelte", "<script>\n// c8 ignore next\nlet a = 1;\n</script>\n")
         out = self.check().stdout
         self.assertEqual({line.split(":")[0] for line in out.splitlines() if line.endswith(": no-coverage-pragma")},
-                         {"src/a.ts", "src/b.js", "src/c.tsx", "src/a.test.ts", "src/A.svelte", "src/B.svelte"}, out)
+                         {"src/a.ts", "src/b.js", "src/c.tsx", "src/A.svelte", "src/B.svelte"}, out)
 
     def test_malformed_ast_grep_output(self):
         for out in ["not json", "{}"]:

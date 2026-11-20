@@ -11,6 +11,34 @@ files:
 utils:
   fake-name:
     regex: '^_*(Mock|Fake|Stub|Spy|Dummy)([A-Z_0-9]|$)'
+  # A method that only injects a fault into the real object: it raises, waits, or passes the call on to
+  # super().<same method>(..), and returns nothing else.
+  fault-method:
+    kind: function_definition
+    all:
+      - has: { field: name, pattern: $M }
+      - has:
+          field: body
+          any:
+            - has: { stopBy: end, kind: raise_statement }
+            - has: { stopBy: end, kind: await }
+            - has: { stopBy: end, kind: call, has: { field: function, kind: attribute, has: { field: attribute, regex: '^wait$' } } }
+            - has: { stopBy: end, pattern: super().$M($$$) }
+      - not:
+          has:
+            field: body
+            has:
+              stopBy: end
+              kind: return_statement
+              not:
+                any:
+                  - regex: '^return$'
+                  - has: { pattern: super().$M($$$) }
+                  - has: { kind: await, has: { pattern: super().$M($$$) } }
+  any-method:
+    any:
+      - kind: function_definition
+      - { kind: decorated_definition, has: { field: definition, kind: function_definition } }
 rule:
   kind: class_definition
   any:
@@ -21,6 +49,21 @@ rule:
         field: name
         regex: '^_*(([A-Z][a-z0-9]*)*(Flaky|Failing|Broken|Crash|Crashing|Boom)|Always|Never)([A-Z0-9_]|$)'
         not: { regex: '^_*Test' }
+      # Fault injection on a real object: class FailingStore(MemoryStore) whose methods only raise, hang, or
+      # record and call super(). A base named like a fake is caught below.
+      not:
+        all:
+          - has: { field: superclasses, kind: argument_list }
+          - has: { field: body, has: { matches: any-method } }
+          - not:
+              has:
+                field: body
+                has:
+                  matches: any-method
+                  not:
+                    any:
+                      - matches: fault-method
+                      - has: { field: definition, matches: fault-method }
     # Subclasses a fake: class SecondSendRaises(FakeMailer), class X(fakes.FakeMailer).
     - has:
         field: superclasses

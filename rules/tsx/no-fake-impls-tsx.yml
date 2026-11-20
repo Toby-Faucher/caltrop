@@ -42,3 +42,11 @@ rule:
                 field: body
                 has: { kind: method_definition, not: { has: { field: name, regex: '^constructor$' } } }
             - not: { has: { kind: class_heritage, has: { kind: extends_clause } } }
+    # A browser API jsdom lacks, put on the global (globalThis.ResizeObserver = class { .. }): it fills an
+    # environment gap rather than standing in for the code under test.
+    - not:
+        inside:
+          kind: assignment_expression
+          has:
+            field: left
+            regex: '^(\(\s*)?(window|globalThis|global)(\s+as\s+[\w<>, ]+\s*\))?\.[A-Z]\w*$'
