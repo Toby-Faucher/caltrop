@@ -1,0 +1,14 @@
+id: no-deadline-poll.unbounded-py
+language: python
+severity: error
+message: "Nothing ends this loop if the condition never comes true, so CI hangs instead of failing. Wait on an event or condition with a timeout, e.g. `await asyncio.wait_for(event.wait(), timeout)`."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+rule:
+  all:
+    - matches: py-sleep-call
+    - matches: py-unbounded-poll

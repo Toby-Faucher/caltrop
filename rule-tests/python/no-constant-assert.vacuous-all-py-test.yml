@@ -8,10 +8,22 @@ valid:
   - "def test_a():\n    ok = all(i.ok for i in items if i.k)"
   - "def test_a():\n    assert all(any(p.ok for p in q.params if p.k) for q in paths)"
   - "def test_a():\n    assert all(x.ok for x in xs) and len(xs) == 2"
+  # An earlier assert pins the collection to a non-empty value.
+  - "def test_a():\n    items = load()\n    assert len(items) == 3\n    assert all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert r.items\n    assert all(i.ok for i in r.items if i.k)"
+  - "def test_a():\n    assert xs == [1, 2]\n    assert all(x > 0 for x in xs if x)"
+  - "def test_a():\n    assert len(xs) > 0, 'empty'\n    with ctx():\n        assert all(x.ok for x in xs if x.k)"
+  - "def test_a(self):\n    assert len(xs) >= 2\n    self.assertTrue(all(x.ok for x in xs if x.k))"
 invalid:
   - "def test_a():\n    assert all(i.ok for i in items if i.kind == 'user')"
-  - "def test_a():\n    items = load()\n    assert len(items) == 3\n    assert all(i.ok for i in items if i.k)"
   - "def test_a():\n    assert all([i.ok for i in items if i.k])"
   - "def test_a():\n    assert all(i.ok for i in items if i.k), 'msg'"
   - "def test_a(self):\n    self.assertTrue(all(i.ok for i in items if i.k))"
   - "def helper(items):\n    assert all(i.ok for i in items if i.k)"
+  # Near-misses: nothing pins this collection to non-empty first.
+  - "def test_a():\n    assert len(items) == 0\n    assert all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert len(items) >= 0\n    assert all(i.ok for i in items if i.k)"
+  - "def test_a():\n    assert xs == []\n    assert all(x.ok for x in xs if x.k)"
+  - "def test_a():\n    assert others\n    assert all(x.ok for x in xs if x.k)"
+  - "def test_a():\n    assert all(x.ok for x in xs if x.k)\n    assert len(xs) == 3"
+  - "def test_b():\n    assert xs\ndef test_a():\n    assert all(x.ok for x in xs if x.k)"

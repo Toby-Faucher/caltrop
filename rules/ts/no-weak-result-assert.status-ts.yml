@@ -13,8 +13,9 @@ utils:
   # res.status, status, res.statusCode, Playwright's res.status().
   status:
     regex: '(^|\.)status(Code)?(\(\))?$'
-  five-xx:
-    regex: '^5\d\d$|INTERNAL_SERVER_ERROR|NOT_IMPLEMENTED|BAD_GATEWAY|SERVICE_UNAVAILABLE|GATEWAY_TIMEOUT'
+  # 500 itself. `toBeOneOf([409, 422, 503])` names every code it accepts, so it is left alone.
+  is-500:
+    regex: '^500$|INTERNAL_SERVER_ERROR'
   # `>= 400` lets a 500 through; `>= 500` does not.
   below-500:
     regex: '^[1-4]\d\d$'
@@ -42,7 +43,7 @@ rule:
                   kind: call_expression
                   has:
                     field: arguments
-                    has: { nthChild: 1, kind: array, has: { matches: five-xx } }
+                    has: { nthChild: 1, kind: array, has: { matches: is-500 } }
         - has: { field: arguments, has: { nthChild: 1, matches: status } }
     # expect(res.status).toBeOneOf([400, 500])
     - kind: call_expression
@@ -53,7 +54,7 @@ rule:
             all:
               - has: { field: property, regex: '^toBeOneOf$' }
               - has: { field: object, matches: expect-status }
-        - has: { field: arguments, has: { nthChild: 1, kind: array, has: { matches: five-xx } } }
+        - has: { field: arguments, has: { nthChild: 1, kind: array, has: { matches: is-500 } } }
     # expect(res.status).toBeGreaterThanOrEqual(400)
     - kind: call_expression
       all:

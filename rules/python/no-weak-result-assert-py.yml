@@ -8,6 +8,13 @@ files:
   - "**/conftest.py"
   - "**/tests/**"
   - "**/test/**"
+utils:
+  reads-e:
+    any:
+      - pattern: $E.value
+      - pattern: $E.exception
+      - pattern: $E.type
+      - pattern: $E.match($$$)
 rule:
   kind: call
   all:
@@ -27,24 +34,28 @@ rule:
           has:
             kind: keyword_argument
             regex: '^match\s*='
-    # `with pytest.raises(Exception) as e:` then a later statement that reads `e.value` pins the error too.
+    # `with pytest.raises(Exception) as e:` then a later statement that reads `e.value`, `e.type` or calls
+    # `e.match(..)` pins the error too.
     - not:
-        inside:
-          kind: with_statement
-          stopBy: end
-          has:
-            kind: with_clause
-            has:
-              kind: with_item
-              has:
-                kind: as_pattern
-                has:
-                  field: alias
-                  pattern: $E
-          precedes:
-            stopBy: end
-            has:
+        all:
+          - inside:
+              kind: with_statement
               stopBy: end
-              any:
-                - pattern: $E.value
-                - pattern: $E.exception
+              has:
+                kind: with_clause
+                has:
+                  kind: with_item
+                  has:
+                    kind: as_pattern
+                    has:
+                      field: alias
+                      pattern: $E
+          # The read may sit after an enclosing block (`async with client:`), but in the same function.
+          - inside:
+              stopBy: { kind: function_definition }
+              not: { kind: function_definition }
+              precedes:
+                stopBy: end
+                any:
+                  - matches: reads-e
+                  - has: { stopBy: end, matches: reads-e }

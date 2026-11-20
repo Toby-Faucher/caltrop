@@ -1,0 +1,18 @@
+id: no-deadline-poll.unbounded-py
+valid:
+  - "async def test_a():\n    await asyncio.wait_for(event.wait(), 5)"
+  # Bounded: a deadline, a counter, or a check that fails the test. no-deadline-poll-py reports these.
+  - "def test_a():\n    while time.monotonic() < deadline:\n        time.sleep(0.1)"
+  - "async def test_a():\n    while not ready() and i < 50:\n        i += 1\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    for _ in range(50):\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    while not ready():\n        if time.monotonic() > deadline:\n            pytest.fail('timed out')\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    while True:\n        n += 1\n        assert n < 50\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    while not ready():\n        await asyncio.sleep(0)"
+  - "async def test_a():\n    async with asyncio.timeout(5):\n        while not ready():\n            await asyncio.sleep(0.1)"
+  - "@pytest.mark.timeout(5)\nasync def test_a():\n    while not ready():\n        await asyncio.sleep(0.1)"
+invalid:
+  - "async def test_a():\n    while not ready():\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    while True:\n        if ready():\n            break\n        await asyncio.sleep(0.1)"
+  - "from time import sleep\ndef wait_until(pred):\n    while not pred():\n        sleep(0.05)"
+  - "def test_a():\n    while job.status is None:\n        time.sleep(1)"
+  - "async def test_a():\n    async with client() as c:\n        while not ready():\n            await asyncio.sleep(0.1)"

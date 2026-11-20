@@ -11,6 +11,8 @@ valid:
   - "async def test_a():\n    with pytest.raises(ValueError):\n        async with client() as c:\n            await c.get('/')"
   - "def test_a():\n    with pytest.warns(UserWarning):\n        f()\n        g()"
   - "def test_a():\n    with open(p) as fh:\n        f()\n        g()"
+  - "async def test_a(mgr):\n    with pytest.raises(ValueError):\n        async with mgr.session() as s:\n            await s.put(1)\n            raise ValueError('boom')"
+  - "def test_a(mgr):\n    with pytest.raises(ValueError):\n        with mgr.session():\n            raise ValueError('boom')\n            # unreachable"
 invalid:
   - "def test_a():\n    with pytest.raises(ValueError):\n        x = setup()\n        f(x)"
   - "def test_a():\n    with pytest.raises(ValueError, match='bad'):\n        f()\n        assert False"
@@ -22,3 +24,5 @@ invalid:
   - "def test_a():\n    with pytest.raises(ValueError):\n        with open(p) as fh:\n            data = fh.read()\n            parse(data)"
   - "async def test_a():\n    with pytest.raises(ValueError):\n        async with client() as c:\n            await c.login()\n            await c.get('/')"
   - "def test_a():\n    with pytest.raises(ValueError):\n        try:\n            f()\n        finally:\n            g()"
+  - "async def test_a(mgr):\n    with pytest.raises(ValueError):\n        async with mgr.session() as s:\n            raise ValueError('boom')\n        await s.close()"
+  - "def test_a(mgr):\n    with pytest.raises(ValueError):\n        with mgr.session() as s:\n            if s.bad:\n                raise ValueError('boom')\n            s.put(1)"

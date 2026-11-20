@@ -23,11 +23,44 @@ utils:
           any:
             - matches: filtered-comp
             - has: { nthChild: 1, matches: filtered-comp }
+  # An earlier `assert xs`, `assert len(xs) == 3` or `assert xs == [..]` (non-empty) on the same collection.
+  pinned:
+    kind: assert_statement
+    has:
+      nthChild: 1
+      any:
+        - pattern: $XS
+        - all:
+            - any: [ { pattern: len($XS) == $N }, { pattern: len($XS) >= $N } ]
+            - has: { nthChild: 2, kind: integer, regex: '^[1-9]' }
+        - all:
+            - pattern: len($XS) > $N
+            - has: { nthChild: 2, kind: integer }
+        - all:
+            - pattern: $XS == $L
+            - has:
+                nthChild: 2
+                any: [ { kind: list }, { kind: tuple }, { kind: set }, { kind: dictionary } ]
+                has: { nthChild: 1 }
+  pin-before:
+    any:
+      - matches: pinned
+      - has: { stopBy: end, matches: pinned }
 rule:
-  any:
-    - kind: assert_statement
-      has: { nthChild: 1, matches: filtered-all }
-    - kind: call
-      all:
-        - has: { field: function, regex: '^self\.assertTrue$' }
-        - has: { field: arguments, has: { nthChild: 1, matches: filtered-all } }
+  all:
+    - any:
+        - kind: assert_statement
+          has: { nthChild: 1, matches: filtered-all }
+        - kind: call
+          all:
+            - has: { field: function, regex: '^self\.assertTrue$' }
+            - has: { field: arguments, has: { nthChild: 1, matches: filtered-all } }
+    # The collection the all() iterates: `xs` in `for x in xs`.
+    - has: { stopBy: end, kind: for_in_clause, has: { field: right, pattern: $XS } }
+    - not:
+        any:
+          - follows: { stopBy: end, matches: pin-before }
+          - inside:
+              stopBy: { kind: function_definition }
+              not: { kind: function_definition }
+              follows: { stopBy: end, matches: pin-before }
