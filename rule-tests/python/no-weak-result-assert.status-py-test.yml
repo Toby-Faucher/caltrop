@@ -28,6 +28,9 @@ valid:
   - "def test_a(self):\n    self.assertNotEqual(r.status_code, 500)"
   # Permissive success tuples are not flagged (they do not accept a crash).
   - "def test_a():\n    assert r.status_code in (200, 201), r.text"
+  # Lists every code it accepts, and 500 is not one of them.
+  - "def test_a():\n    assert r.status_code in (409, 422, 503)"
+  - "def test_a(self):\n    self.assertIn(r.status_code, [400, status.HTTP_503_SERVICE_UNAVAILABLE])"
 invalid:
   - "def test_a():\n    assert r.status_code in (400, 500)"
   - "def test_a():\n    assert resp.status_code in {422, 500}, resp.text"
@@ -35,6 +38,7 @@ invalid:
   - "def test_a():\n    assert status in (400, 500)"
   - "def test_a():\n    assert r.status in (400, HTTPStatus.INTERNAL_SERVER_ERROR)"
   - "def test_a():\n    assert r.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR)"
+  - "def test_a():\n    assert r.status_code in (422, 500, 503)"
   - "def test_a():\n    assert r.status_code >= 400"
   - "def test_a():\n    assert r.status_code > 399"
   - "def test_a():\n    assert r.status_code != 200"

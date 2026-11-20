@@ -19,12 +19,16 @@ valid:
   - "expect(res.status).not.toBe(401);"
   # Permissive success lists are not flagged (they do not accept a crash).
   - "expect([200, 201]).toContain(res.status);"
+  # Lists every code it accepts, and 500 is not one of them.
+  - "expect([409, 422, 503]).toContain(res.status);"
+  - "expect(res.status).toBeOneOf([422, 503]);"
 invalid:
   - "expect([400, 500]).toContain(res.status);"
   - "expect([422, 500]).toContain(response.status());"
   - "expect([400, 404, 500]).toContain(res.statusCode);"
   - "expect([400, 500]).toContain(status);"
   - "expect(res.status).toBeOneOf([400, 500]);"
+  - "expect(res.status).toBeOneOf([422, 500, 503]);"
   - "expect(status).toBeGreaterThanOrEqual(400);"
   - "expect(res.status()).toBeGreaterThan(399);"
   - "expect(res.status).not.toBe(200);"

@@ -1,0 +1,17 @@
+# Generated from rule-tests/ts/no-constant-assert.or-substring-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-constant-assert.or-substring-tsx
+valid:
+  - "it('x', () => { expect(k.includes('id') || k.includes('pk')).toBe(true); });"
+  # Both sides specific.
+  - "it('x', () => { expect(s.includes('timeout') || s.includes('timed out')).toBe(true); });"
+  # Different subjects.
+  - "it('x', () => { expect(a.includes('already exists') || b.includes('no')).toBe(true); });"
+  # Asserting neither is there.
+  - "it('x', () => { expect(t.includes('already exists') || t.includes('no')).toBe(false); });"
+  - "it('x', () => { expect(t.includes('already exists') && t.includes('no')).toBe(true); });"
+  - "it('x', () => { expect(t.includes(msg) || t.includes('no')).toBe(true); });"
+invalid:
+  - "it('x', () => { expect(t.includes('already exists') || t.includes('not')).toBe(true); });"
+  - "it('x', () => { expect(body.includes(\"Permission denied\") || body.includes(\"Error\")).toBeTruthy(); });"
+  - "it('x', () => { assert.ok(out.includes('ok') || out.includes('unexpected success')); });"
+  - "test('x', async () => { const text = await res.text(); expect(text.includes('must be unique') || text.includes('error')).toEqual(true); });"

@@ -1,0 +1,31 @@
+id: no-constant-assert.or-substring-py
+language: python
+severity: error
+message: "One side of this `or` matches almost any text, so the assert passes whatever the response says. Assert the one message you expect."
+files:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/conftest.py"
+  - "**/tests/**"
+  - "**/test/**"
+# `assert "already exists" in r.text or "not" in r.text`: two substring checks on the same subject, one of them
+# empty, one character, or a stopword. `"timeout" in s or "timed out" in s` (both specific) is skipped.
+utils:
+  weak-in:
+    kind: comparison_operator
+    has: { nthChild: 1, kind: string, regex: '^[rRuUbB]*(''|")(.?|(?i:not|no|error|fail|ok|the|an?))(''|")$' }
+  weak-or:
+    all:
+      - pattern: $A in $X or $B in $X
+      - has: { matches: weak-in }
+rule:
+  any:
+    - kind: assert_statement
+      has: { nthChild: 1, matches: weak-or }
+    - kind: call
+      all:
+        - has: { field: function, regex: '^self\.assertTrue$' }
+        - has: { field: arguments, has: { nthChild: 1, matches: weak-or } }
+constraints:
+  A: { kind: string }
+  B: { kind: string }

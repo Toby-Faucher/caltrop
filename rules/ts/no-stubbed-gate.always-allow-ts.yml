@@ -1,0 +1,77 @@
+id: no-stubbed-gate.always-allow-ts
+language: typescript
+severity: error
+message: "This test replaces the app's permission check with one that always allows, so it can no longer fail on a permission bug. Test the real check with a user who has, and one who lacks, the permission; mock the user or session, not the decision."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# A permission check by name (`can`, `canEdit`, `hasRole`, `isAdmin`, `checkPermission`, `authorize`) replaced by a
+# constant `true`. A check mocked to `false` (the deny path) or with an implementation that reads its argument is
+# skipped. caltrop drops the no-mock-libs hit on the same call.
+utils:
+  gate-name:
+    regex: '^(can|can[A-Z]\w*|has(Role|Permission|Access|Scope)\w*|is(Admin|Allowed|Authorized|Authenticated)\w*|check(Permission|Access)\w*|authorize\w*)$'
+  # `() => true`, `async () => true`
+  true-arrow:
+    kind: arrow_function
+    has: { field: body, kind: "true" }
+  # `.mockReturnValue(true)`, `.mockResolvedValue(true)`, `.mockImplementation(() => true)` (and `Once`)
+  mock-true:
+    kind: call_expression
+    all:
+      - has:
+          field: function
+          kind: member_expression
+          has: { field: property, regex: '^mock(ReturnValue|ResolvedValue|Implementation)(Once)?$' }
+      - has: { field: arguments, has: { nthChild: 1, any: [ { kind: "true" }, { matches: true-arrow } ] } }
+  # A factory value: `() => true`, `vi.fn(() => true)`, `vi.fn().mockReturnValue(true)`
+  true-value:
+    any:
+      - matches: true-arrow
+      - matches: mock-true
+      - kind: call_expression
+        all:
+          - has: { field: function, regex: '^(vi|jest)\.fn$' }
+          - has: { field: arguments, has: { nthChild: 1, matches: true-arrow } }
+rule:
+  any:
+    # vi.mock('$lib/auth', () => ({ can: () => true })): one hit on the mock call.
+    - kind: call_expression
+      all:
+        - has: { field: function, regex: '^(vi|jest)\.(mock|doMock|unstable_mockModule)$' }
+        - has:
+            field: arguments
+            has:
+              stopBy: end
+              kind: pair
+              all:
+                - has: { field: key, matches: gate-name }
+                - has: { field: value, matches: true-value }
+    # vi.spyOn(perms, 'hasRole').mockReturnValue(true), vi.mocked(auth.can).mockReturnValue(true), can.mockReturnValue(true)
+    - matches: mock-true
+      has:
+        field: function
+        has:
+          field: object
+          any:
+            - matches: gate-name
+            - kind: member_expression
+              has: { field: property, matches: gate-name }
+            - kind: call_expression
+              all:
+                - has: { field: function, regex: '^((vi|jest)\.(spyOn|mocked)|mocked)$' }
+                - has:
+                    field: arguments
+                    any:
+                      # vi.spyOn(obj, 'gate')
+                      - has: { nthChild: 2, kind: string, has: { kind: string_fragment, matches: gate-name } }
+                      # vi.mocked(gate), vi.mocked(obj.gate)
+                      - has:
+                          nthChild: 1
+                          any:
+                            - { kind: identifier, matches: gate-name }
+                            - { kind: member_expression, has: { field: property, matches: gate-name } }
