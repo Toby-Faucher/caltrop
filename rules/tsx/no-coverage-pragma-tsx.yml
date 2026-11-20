@@ -3,7 +3,15 @@ id: no-coverage-pragma-tsx
 language: tsx
 severity: error
 message: "Cover this code with a test instead of excluding it from coverage. An excluded line lets a coverage threshold pass on code no test runs."
-# Production code too: that is where coverage exclusions live. No files: glob.
+# Production code: that is where coverage exclusions live.
+# Test code is skipped (same globs as the test rules): a coverage threshold protects the code under test.
+ignores:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
 rule:
   kind: comment
   # The ignore hints istanbul, c8, vitest's v8 provider and node --test honour. A start/stop or disable/enable

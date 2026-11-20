@@ -12,6 +12,11 @@ valid:
   - "async def test_a():\n    await asyncio.sleep(math.inf)"
   - "async def test_a():\n    loop.call_later(0, cb)"
   - "def test_a():\n    helpers.call_later(cb, 10.1, loop)"
+  # A stand-in that simulates latency or a hang for the code under test.
+  - "async def test_a():\n    async def never_answers():\n        await asyncio.sleep(5)\n    with pytest.raises(TimeoutError):\n        await call(handler=never_answers, timeout=0.1)"
+  - "class SlowStore(MemoryStore):\n    async def get(self, k):\n        await asyncio.sleep(0.2)\n        return await super().get(k)"
+  - "def test_a():\n    class Slow:\n        @property\n        def value(self):\n            time.sleep(0.1)\n            return 1"
+  - "def make_app():\n    app = App()\n    @app.get('/slow')\n    async def slow():\n        await asyncio.sleep(1)\n    return app"
 invalid:
   - "import time\ndef test_a():\n    time.sleep(0.5)"
   - "async def test_a():\n    await asyncio.sleep(0.1)"
@@ -26,3 +31,13 @@ invalid:
   - "async def test_a():\n    loop.call_later(0.1, raiser)"
   - "async def test_a():\n    asyncio.get_running_loop().call_later(1, fut.set_result, None)"
   - "async def test_a():\n    for x in xs:\n        self.loop.call_later(1.0, resp.release)"
+  # Not a stand-in: test code, a fixture, a hook, a test class's helper, a def in a loop, a def the test calls, or a module helper.
+  - "class TestA:\n    def test_a(self):\n        time.sleep(1)"
+  - "class TestA:\n    def _wait(self):\n        time.sleep(1)"
+  - "class A(unittest.TestCase):\n    def setUp(self):\n        time.sleep(1)"
+  - "class A:\n    @pytest.fixture\n    def server(self):\n        time.sleep(1)"
+  - "def pytest_configure(config):\n    time.sleep(1)"
+  - "def test_a():\n    def wait_ready():\n        time.sleep(1)\n    wait_ready()"
+  - "async def test_a():\n    async def later():\n        await asyncio.sleep(1)\n        ev.set()\n    asyncio.create_task(later())"
+  - "def test_a():\n    for x in xs:\n        def later():\n            time.sleep(1)\n        run(later)"
+  - "def wait_for_server():\n    time.sleep(2)"

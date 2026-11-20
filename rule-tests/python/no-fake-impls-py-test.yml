@@ -40,6 +40,11 @@ valid:
   - "def test_a():\n    class Cfg:\n        debug = True"
   # A class in a helper or fixture is not in a test function.
   - "def make_mailer():\n    class Down:\n        def send(self):\n            raise OSError"
+  # Fault injection on a real class: each override raises, hangs, or records and calls super().
+  - "class FailingStore(MemoryStore):\n    async def put(self, k, v):\n        raise OSError('disk full')"
+  - "class FlakyStore(MemoryStore):\n    def __init__(self):\n        super().__init__()\n        self.calls = 0\n    async def get(self, k):\n        self.calls += 1\n        if self.calls == 1:\n            raise TimeoutError\n        return await super().get(k)"
+  - "class NeverReady(MemoryQueue):\n    async def get(self):\n        await self.never.wait()"
+  - "class BrokenMailer(SmtpMailer):\n    @property\n    def host(self):\n        raise OSError"
 invalid:
   - "class FakeClock(Clock):\n    def now(self):\n        return 0"
   - "class FakeClock:\n    def now(self):\n        return 0"
@@ -68,3 +73,9 @@ invalid:
   - "class AlwaysDown:\n    def send(self, msg):\n        return False"
   - "class NeverReady:\n    pass"
   - "class FailingClock(Clock):\n    pass"
+  # Not fault injection: a canned return, no base, a base named like a fake, or no methods.
+  - "class FailingStore(MemoryStore):\n    async def get(self, k):\n        return None"
+  - "class FlakyStore(MemoryStore):\n    async def get(self, k):\n        if self.n:\n            raise OSError\n        return {'id': 1}"
+  - "class FailingStore:\n    async def put(self, k, v):\n        raise OSError"
+  - "class FailingStore(FakeStore):\n    async def put(self, k, v):\n        raise OSError"
+  - "class FailingStore(MemoryStore):\n    async def get(self, k):\n        return await super().put(k, None)\n    async def put(self, k, v):\n        raise OSError"

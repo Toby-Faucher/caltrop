@@ -25,6 +25,10 @@ valid:
   - "class Boomerang implements Toy {}"
   # A class in a helper function, not directly in the test callback.
   - "it('x', () => { function make() { class Down { send() { throw new Error(); } } return new Down(); } });"
+  # A browser API jsdom lacks, put on the global.
+  - "it('x', () => { globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }; render(C); });"
+  - "it('x', () => { window.BarcodeDetector = class { async detect() { return []; } }; });"
+  - "it('x', () => { (globalThis as any).IntersectionObserver = class { observe() {} }; });"
 invalid:
   - "class FakeApi implements Api { async load() { return []; } }"
   - "class MockEventSource extends EventTarget {}"
@@ -46,3 +50,6 @@ invalid:
   - "class FlakyApi implements Api { async load() { throw new Error('down'); } }"
   - "export class AlwaysDown { send() { return false; } }"
   - "class NeverReady extends Probe {}"
+  # The same class kept local and handed to the code under test, or put on a lowercase global, is a stand-in.
+  - "it('x', () => { const RO = class { observe() {} }; render(C, { props: { RO } }); });"
+  - "it('x', () => { window.api = class { fetch() { return 1; } }; });"

@@ -9,6 +9,10 @@ files:
   - "**/tests/**"
   - "**/test/**"
 rule:
+  # A delay inside a stand-in the code under test calls (a slow fake, a handler that never answers) simulates
+  # latency; the test is not waiting on it.
+  not:
+    matches: py-in-stand-in
   any:
     - all:
         - matches: py-sleep-call
