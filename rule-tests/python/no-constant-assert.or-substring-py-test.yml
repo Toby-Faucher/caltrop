@@ -1,0 +1,21 @@
+id: no-constant-assert.or-substring-py
+valid:
+  # Both sides specific.
+  - "def test_a():\n    assert 'timeout' in s or 'timed out' in s"
+  # One substring.
+  - "def test_a():\n    assert 'no' in s"
+  # Different subjects.
+  - "def test_a():\n    assert 'already exists' in r.text or 'no' in other"
+  # `and` needs both.
+  - "def test_a():\n    assert 'already exists' in r.text and 'not' in r.text"
+  # Not a literal.
+  - "def test_a():\n    assert msg in r.text or 'no' in r.text"
+  - "def test_a():\n    assert 'not' not in r.text or 'already exists' in r.text"
+  # Short but specific: dict keys.
+  - "def test_a():\n    assert 'id' in d or 'pk' in d"
+invalid:
+  - "def test_a():\n    assert 'must be unique' in detail or '' in detail, detail"
+  - "def test_a():\n    assert 'already exists' in r.text or 'not' in r.text"
+  - "def test_a():\n    assert \"Permission denied\" in body or \"Error\" in body"
+  - "def test_a():\n    assert 'ok' in out or 'unexpected success' in out"
+  - "class T(TestCase):\n    def test_a(self):\n        self.assertTrue('invalid email' in r.text or 'fail' in r.text)"

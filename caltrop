@@ -88,9 +88,10 @@ def scan(repo):
                 helpers.add(h["metaVariables"]["single"]["NAME"]["text"])
                 continue
             key = (rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])
-            if rule == "no-mock-subject":
-                if not mocks_subject(repo, h["file"], h["metaVariables"]["single"]["PATH"]["text"][1:-1]):
-                    continue
+            if rule == "no-mock-subject" and not mocks_subject(
+                    repo, h["file"], h["metaVariables"]["single"]["PATH"]["text"][1:-1]):
+                continue
+            if rule in ("no-mock-subject", "no-stubbed-gate"):
                 subject.add(key[1:])
             hits[key] = h["message"]
             if rule == "no-assertion-free-test":
@@ -103,7 +104,7 @@ def scan(repo):
     for key, names in calls.items():
         if names & helpers:  # the test asserts through a helper
             del hits[key]
-    for loc in subject:  # one hit per call: no-mock-subject says more than no-mock-libs
+    for loc in subject:  # one hit per call: no-mock-subject and no-stubbed-gate say more than no-mock-libs
         hits.pop(("no-mock-libs", *loc), None)
     # Generated code is the generator's to fix, not this repo's.
     generated = {f for f in {k[1] for k in hits} if is_generated(repo / f)}
