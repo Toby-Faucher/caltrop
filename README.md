@@ -270,7 +270,7 @@ The rules are written for TypeScript. `sgconfig.yml` parses `.js`, `.mjs`, `.cjs
 
 ### Python
 
-<details><summary>35 Python limits</summary>
+<details><summary>34 Python limits</summary>
 
 - Python has no `no-mock-subject`. `patch('app.mailer.send')` in `test_mailer.py` usually replaces a dependency as `mailer` looks it up (patch where it is used), so the module name does not tell the subject from a dependency. `no-mock-libs` still reports the patch.
 - `sleep(0)` and `asyncio.sleep(0)` are skipped: they only yield to the event loop. `sleep(inf)` is skipped: it blocks until cancelled. A long sleep used the same way (`await asyncio.sleep(10)` in a handler that should hang, `create_task(asyncio.sleep(1000))`) still counts; use `asyncio.Event().wait()`.
