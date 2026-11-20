@@ -89,7 +89,7 @@ Add the GitHub Action to a workflow:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: Toby-Faucher/caltrop@v1.5.0
+  - uses: Toby-Faucher/caltrop@v1.6.0
     # with:
     #   dir: path/to/repo   # default: .
 ```
@@ -107,7 +107,7 @@ caltrop needs ast-grep 0.44.1 and Python 3.11 or newer (standard library only). 
 ```yaml
 repos:
   - repo: https://github.com/Toby-Faucher/caltrop
-    rev: v1.5.0
+    rev: v1.6.0
     hooks:
       - id: caltrop
 ```
@@ -117,7 +117,7 @@ The hook installs ast-grep 0.44.1 itself and checks the whole repo on every comm
 ### pipx
 
 ```
-pipx install git+https://github.com/Toby-Faucher/caltrop@v1.5.0
+pipx install git+https://github.com/Toby-Faucher/caltrop@v1.6.0
 pipx install ast-grep-cli==0.44.1
 ```
 
