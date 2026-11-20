@@ -495,6 +495,17 @@ class CaltropTest(Fixture):
         self.assertIn("src/lib/toast.test.ts:2: no-mock-libs:", r.stdout)
         self.assertNotIn("src/lib/toast.test.ts:2: no-mock-subject:", r.stdout)
 
+    def test_stubbed_gate_replaces_mock_libs_hit(self):
+        self.write("src/page.test.ts", (
+            "vi.mock('$lib/auth', () => ({ can: () => true }));\n"
+            "it('x', () => { vi.spyOn(perms, 'hasRole').mockReturnValue(true); });\n"
+            "it('y', () => { vi.spyOn(perms, 'hasRole').mockReturnValue(false); });\n"))
+        r = self.check()
+        for line in (1, 2):
+            self.assertIn(f"src/page.test.ts:{line}: no-stubbed-gate:", r.stdout)
+            self.assertNotIn(f"src/page.test.ts:{line}: no-mock-libs:", r.stdout)
+        self.assertIn("src/page.test.ts:3: no-mock-libs:", r.stdout)
+
     def test_weak_assert_variants_share_id(self):
         self.write("tests/test_a.py", "def test_a():\n    with pytest.raises(ValueError):\n        x = f()\n        g(x)\n")
         self.write("src/a.test.ts", "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('x'); } });\n")

@@ -1,0 +1,27 @@
+# Generated from rule-tests/ts/no-stubbed-gate.always-allow-ts-test.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-stubbed-gate.always-allow-tsx
+valid:
+  # The deny path: still a stub, but not the always-allow shortcut.
+  - "vi.mock('$lib/auth', () => ({ can: () => false }));"
+  - "it('x', () => { vi.mocked(auth.can).mockReturnValue(false); });"
+  # An implementation that looks at its argument.
+  - "vi.mock('$lib/auth', () => ({ can: (user, perm) => user.perms.includes(perm) }));"
+  - "it('x', () => { vi.spyOn(perms, 'hasRole').mockImplementation((role) => role === 'viewer'); });"
+  # Not a permission check.
+  - "it('x', () => { vi.spyOn(form, 'isValid').mockReturnValue(true); });"
+  - "it('x', () => { vi.mocked(iter.hasNext).mockReturnValue(true); });"
+  - "vi.mock('$lib/canvas', () => ({ canvasReady: () => true, cancel: () => true }));"
+  - "vi.mock('$lib/list', () => ({ hasItems: () => true }));"
+  # Mocking the user, not the decision.
+  - "vi.mock('$lib/session', () => ({ user: { isAdmin: true } }));"
+  # Not inside a module mock.
+  - "it('x', () => { render(Page, { props: { can: () => true } }); });"
+invalid:
+  - "vi.mock('$lib/auth', () => ({ can: () => true }));"
+  - "vi.mock('$lib/auth', async (orig) => ({ ...(await orig()), isAdmin: vi.fn(() => true) }));"
+  - "vi.mock('$lib/perms', () => ({ default: { hasPermission: vi.fn().mockReturnValue(true) } }));"
+  - "it('x', () => { vi.mocked(auth.can).mockReturnValue(true); });"
+  - "it('x', () => { vi.mocked(canEdit).mockResolvedValue(true); });"
+  - "it('x', () => { vi.spyOn(perms, 'hasRole').mockReturnValue(true); });"
+  - "it('x', () => { jest.spyOn(perms, 'checkPermission').mockImplementation(() => true); });"
+  - "it('x', () => { authorizeRequest.mockReturnValueOnce(true); });"

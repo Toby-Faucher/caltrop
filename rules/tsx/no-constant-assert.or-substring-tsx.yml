@@ -1,0 +1,45 @@
+# Generated from rules/ts/no-constant-assert.or-substring-ts.yml by scripts/gen-tsx.py; edit that file and re-run.
+id: no-constant-assert.or-substring-tsx
+language: tsx
+severity: error
+message: "One side of this `||` matches almost any text, so the assert passes whatever the response says. Assert the one message you expect."
+files:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/e2e/**"
+# `expect(t.includes('already exists') || t.includes('not')).toBe(true)`: two `.includes` of a literal on the same
+# subject, one of them 3 characters or less or a stopword. Both specific (`'timeout'`, `'timed out'`) is skipped.
+utils:
+  weak-includes:
+    kind: call_expression
+    has:
+      field: arguments
+      has: { nthChild: 1, kind: string, regex: '^[''"](.{0,3}|(?i:not|no|error|fail|ok|the|an?))[''"]$' }
+  weak-or:
+    all:
+      - pattern: $X.includes($A) || $X.includes($B)
+      - has: { matches: weak-includes }
+rule:
+  any:
+    # expect(..).toBe(true) / toEqual(true) / toStrictEqual(true) / toBeTruthy()
+    - kind: call_expression
+      all:
+        - has: { field: function, regex: '^expect$' }
+        - has: { field: arguments, has: { nthChild: 1, matches: weak-or } }
+        - inside:
+            kind: member_expression
+            has: { field: property, regex: '^(toBe|toEqual|toStrictEqual|toBeTruthy)$' }
+            inside:
+              kind: call_expression
+              not: { has: { field: arguments, has: { nthChild: 1, not: { kind: "true" } } } }
+    # assert(..), assert.ok(..), assert.isTrue(..)
+    - kind: call_expression
+      all:
+        - has: { field: function, regex: '^assert(\.(ok|isTrue))?$' }
+        - has: { field: arguments, has: { nthChild: 1, matches: weak-or } }
+constraints:
+  A: { kind: string }
+  B: { kind: string }
