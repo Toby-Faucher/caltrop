@@ -10,6 +10,7 @@ files:
   - "**/test/**"
 # ruff PT012: the body must be one simple statement. Allowed, as in ruff: a def or class (to test a decorator),
 # a `for` whose body is only `pass` or `...` (to test an iterator), and a nested `with` around one simple statement.
+# Also allowed: a nested `with` whose last statement is the test's own `raise`.
 utils:
   second-stmt:
     has: { nthChild: { position: 2, ofRule: { not: { kind: comment } } } }
@@ -39,6 +40,15 @@ utils:
       has:
         nthChild: { position: 1, ofRule: { not: { kind: comment } } }
         not: { matches: compound }
+  # The test drives a context manager's error path: `with cm(): ...; raise ValueError("boom")`.
+  # The raise is the test's own, so the error under test is how the manager lets it out.
+  raise-in-with:
+    kind: with_statement
+    has:
+      field: body
+      has:
+        nthChild: { position: 1, reverse: true, ofRule: { not: { kind: comment } } }
+        kind: raise_statement
 rule:
   kind: with_statement
   all:
@@ -64,3 +74,4 @@ rule:
                 any:
                   - matches: empty-for
                   - matches: simple-with
+                  - matches: raise-in-with

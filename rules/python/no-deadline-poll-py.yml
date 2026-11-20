@@ -12,3 +12,5 @@ rule:
   all:
     - matches: py-sleep-call
     - matches: py-in-loop
+    # Reported by no-deadline-poll.unbounded-py instead.
+    - not: { matches: py-unbounded-poll }
