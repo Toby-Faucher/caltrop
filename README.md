@@ -39,17 +39,31 @@ def test_retry():
         worker.retry()
 ```
 
-`caltrop check` on a repo with only `tests/test_worker.py` exits 1:
+`caltrop check` on a repo with only `tests/test_worker.py` exits 1. It counts hits per rule, then prints each rule's message once over its `path:line: rule` hits:
 
 ```
-tests/test_worker.py:2: no-mock-libs: Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine.
-tests/test_worker.py:11: no-fixed-sleep: Await the operation or an event it emits (`asyncio.Event`, a queue, a future). To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers or timestamps, inject the clock or freeze time (`time-machine`, `freezegun`).
-tests/test_worker.py:15: no-ignored-test: An ignored test never runs in CI, and an xfail passes whether or not it fails. Make it run (fixture, dependency or a CI job), or delete it.
-tests/test_worker.py:16: no-assertion-free-test: This test checks nothing. Assert on the result. If 'does not raise' is the point, say so with an explicit assertion.
+no-assertion-free-test  1 hit(s) in 1 file(s)
+no-fixed-sleep          1 hit(s) in 1 file(s)
+no-ignored-test         1 hit(s) in 1 file(s)
+no-mock-libs            1 hit(s) in 1 file(s)
+total                   4 hit(s) in 1 file(s)
+
+no-assertion-free-test: This test checks nothing. Assert on the result. If 'does not raise' is the point, say so with an explicit assertion.
+tests/test_worker.py:16: no-assertion-free-test
+
+no-fixed-sleep: Await the operation or an event it emits (`asyncio.Event`, a queue, a future). To prove something did not happen, send a sentinel after it and wait for the sentinel. For timers or timestamps, inject the clock or freeze time (`time-machine`, `freezegun`).
+tests/test_worker.py:11: no-fixed-sleep
+
+no-ignored-test: An ignored test never runs in CI, and an xfail passes whether or not it fails. Make it run (fixture, dependency or a CI job), or delete it.
+tests/test_worker.py:15: no-ignored-test
+
+no-mock-libs: Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine.
+tests/test_worker.py:2: no-mock-libs
+
 run caltrop baseline to adopt caltrop in this repo
 ```
 
-With `--format github` the same hits become pull request annotations, one per line:
+With `--format github` the same hits become pull request annotations, one per hit with the full message:
 
 ```
 ::error file=tests/test_worker.py,line=11,col=5::no-fixed-sleep: Await the operation or an event it emits ...
