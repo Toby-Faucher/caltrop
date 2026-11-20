@@ -11,13 +11,13 @@ files:
   - "**/test/**"
   - "**/e2e/**"
 # `expect(t.includes('already exists') || t.includes('not')).toBe(true)`: two `.includes` of a literal on the same
-# subject, one of them 3 characters or less or a stopword. Both specific (`'timeout'`, `'timed out'`) is skipped.
+# subject, one of them empty, one character, or a stopword. Both specific (`'timeout'`, `'timed out'`) is skipped.
 utils:
   weak-includes:
     kind: call_expression
     has:
       field: arguments
-      has: { nthChild: 1, kind: string, regex: '^[''"](.{0,3}|(?i:not|no|error|fail|ok|the|an?))[''"]$' }
+      has: { nthChild: 1, kind: string, regex: '^[''"](.?|(?i:not|no|error|fail|ok|the|an?))[''"]$' }
   weak-or:
     all:
       - pattern: $X.includes($A) || $X.includes($B)

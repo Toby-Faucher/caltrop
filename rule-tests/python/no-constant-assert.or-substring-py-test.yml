@@ -11,9 +11,11 @@ valid:
   # Not a literal.
   - "def test_a():\n    assert msg in r.text or 'no' in r.text"
   - "def test_a():\n    assert 'not' not in r.text or 'already exists' in r.text"
+  # Short but specific: dict keys.
+  - "def test_a():\n    assert 'id' in d or 'pk' in d"
 invalid:
+  - "def test_a():\n    assert 'must be unique' in detail or '' in detail, detail"
   - "def test_a():\n    assert 'already exists' in r.text or 'not' in r.text"
   - "def test_a():\n    assert \"Permission denied\" in body or \"Error\" in body"
   - "def test_a():\n    assert 'ok' in out or 'unexpected success' in out"
-  - "def test_a():\n    assert 'must be unique' in detail or 'id' in detail, detail"
   - "class T(TestCase):\n    def test_a(self):\n        self.assertTrue('invalid email' in r.text or 'fail' in r.text)"

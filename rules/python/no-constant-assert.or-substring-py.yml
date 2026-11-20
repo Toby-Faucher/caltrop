@@ -9,11 +9,11 @@ files:
   - "**/tests/**"
   - "**/test/**"
 # `assert "already exists" in r.text or "not" in r.text`: two substring checks on the same subject, one of them
-# 3 characters or less or a stopword. `"timeout" in s or "timed out" in s` (both specific) is skipped.
+# empty, one character, or a stopword. `"timeout" in s or "timed out" in s` (both specific) is skipped.
 utils:
   weak-in:
     kind: comparison_operator
-    has: { nthChild: 1, kind: string, regex: '^[rRuUbB]*(''|")(.{0,3}|(?i:not|no|error|fail|ok|the|an?))(''|")$' }
+    has: { nthChild: 1, kind: string, regex: '^[rRuUbB]*(''|")(.?|(?i:not|no|error|fail|ok|the|an?))(''|")$' }
   weak-or:
     all:
       - pattern: $A in $X or $B in $X
