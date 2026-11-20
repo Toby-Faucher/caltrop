@@ -3,25 +3,177 @@ language: python
 severity: error
 message: "Use the real implementation, not a mock or a patched attribute. Pass the dependency in. For HTTP, a real local server (`pytest-httpserver`, a uvicorn app on a free port) is fine. `monkeypatch.setenv`, `chdir` and `syspath_prepend` are fine."
 utils:
-  # A number, plain string, bool, None, or a tuple/list/set/dict built only from those.
-  literal:
+  fail-call:
+    kind: call
+    has: { field: function, regex: '^((pytest|self)\.)?fail$' }
+  assertion-error:
     any:
-      - { kind: integer }
-      - { kind: float }
-      - { kind: string }
-      - { kind: concatenated_string }
-      - { kind: 'true' }
-      - { kind: 'false' }
-      - { kind: none }
-      - { kind: unary_operator }
-      - { kind: tuple }
-      - { kind: list }
-      - { kind: set }
-      - { kind: dictionary }
-    not:
+      - { kind: identifier, regex: '^AssertionError$' }
+      - { kind: call, has: { field: function, regex: '^AssertionError$' } }
+  # A def whose whole body is pytest.fail(..) or raise AssertionError(..).
+  tripwire-def:
+    kind: function_definition
+    has:
+      field: body
+      not: { has: { nthChild: 2 } }
       has:
-        stopBy: end
-        any: [ { kind: identifier }, { kind: interpolation }, { kind: lambda } ]
+        nthChild: 1
+        any:
+          - { kind: expression_statement, has: { matches: fail-call } }
+          - { kind: raise_statement, has: { matches: assertion-error } }
+  # $TRIP names a def in this file, and every def by that name is a tripwire.
+  tripwire-name:
+    inside:
+      stopBy: end
+      kind: module
+      all:
+        - has: { stopBy: end, kind: function_definition, has: { field: name, pattern: $TRIP } }
+        - not:
+            has:
+              stopBy: end
+              kind: function_definition
+              all:
+                - has: { field: name, pattern: $TRIP }
+                - not: { matches: tripwire-def }
+  # A replacement that fails the test when called: it asserts the dependency is not used.
+  tripwire:
+    any:
+      - matches: assertion-error
+      - kind: lambda
+        has:
+          field: body
+          any:
+            - matches: fail-call
+            - all:
+                - kind: call
+                - has: { field: function, kind: identifier, pattern: $TRIP }
+                - matches: tripwire-name
+      - all:
+          - { kind: identifier, pattern: $TRIP }
+          - matches: tripwire-name
+  # The original's result: orig(..), await orig(..), or a name assigned one in the same def.
+  orig-result:
+    any:
+      - { kind: call, has: { field: function, pattern: $ORIG } }
+      - { kind: await, has: { kind: call, has: { field: function, pattern: $ORIG } } }
+      - all:
+          - { kind: identifier, pattern: $V }
+          - inside:
+              stopBy: end
+              kind: function_definition
+              has:
+                stopBy: end
+                kind: assignment
+                all:
+                  - has: { field: left, pattern: $V }
+                  - has: { field: right, matches: orig-result }
+  # A def that calls $ORIG, never raises (that is fault injection) and returns nothing but its result
+  # (a canned value for some inputs is a stand-in).
+  call-through-def:
+    kind: function_definition
+    has:
+      field: body
+      all:
+        - has: { stopBy: end, kind: call, has: { field: function, pattern: $ORIG } }
+        - not: { has: { stopBy: end, kind: raise_statement } }
+        - not:
+            has:
+              stopBy: end
+              kind: return_statement
+              has: { nthChild: 1, not: { matches: orig-result } }
+  # A replacement that calls the original it replaced ($O.$N): a spy, not a stand-in. The original is
+  # passed as is (wraps=mod.f), or saved first (orig = mod.f) and called by a lambda or a def.
+  call-through:
+    any:
+      - kind: attribute
+        all:
+          - has: { field: object, pattern: $O }
+          - has: { field: attribute, pattern: $N }
+      - all:
+          - inside:
+              stopBy: end
+              kind: module
+              has:
+                stopBy: end
+                kind: assignment
+                all:
+                  - has:
+                      field: right
+                      kind: attribute
+                      all:
+                        - has: { field: object, pattern: $O }
+                        - has: { field: attribute, pattern: $N }
+                  - has: { field: left, kind: identifier, pattern: $ORIG }
+          - any:
+              - pattern: $ORIG
+              # A lambda that branches can return a canned value.
+              - kind: lambda
+                all:
+                  - has: { stopBy: end, kind: call, has: { field: function, pattern: $ORIG } }
+                  - not: { has: { stopBy: end, any: [ { kind: conditional_expression }, { kind: boolean_operator } ] } }
+              - all:
+                  - { kind: identifier, pattern: $R }
+                  - inside:
+                      stopBy: end
+                      kind: module
+                      all:
+                        - has: { stopBy: end, kind: function_definition, has: { field: name, pattern: $R } }
+                        - not:
+                            has:
+                              stopBy: end
+                              kind: function_definition
+                              all:
+                                - has: { field: name, pattern: $R }
+                                - not: { matches: call-through-def }
+  # A constant's new value, unless it is a function or a stand-in object.
+  config-value:
+    not:
+      any:
+        - kind: lambda
+        - regex: '(?i)mock|fake|stub'
+  # setattr(mod, "NAME", ..), patch.object(mod, "NAME", ..), setattr("pkg.mod.NAME", ..), patch("pkg.mod.NAME", ..)
+  # that sets an ALL_CAPS constant (configuration, like setenv), spies on, or trips on a call.
+  exempt-replacement:
+    has:
+      field: arguments
+      any:
+        - all:
+            - has: { nthChild: 1, not: { kind: string }, pattern: $O }
+            - has: { nthChild: 2, kind: string, has: { kind: string_content, pattern: $N } }
+            - any:
+                - all:
+                    - has: { nthChild: 2, regex: '^[rRuU]?["''][A-Z][A-Z0-9_]*["'']$' }
+                    - any:
+                        - has: { nthChild: 3, not: { kind: keyword_argument }, matches: config-value }
+                        - has:
+                            kind: keyword_argument
+                            all:
+                              - has: { field: name, regex: '^new$' }
+                              - has: { field: value, matches: config-value }
+                - has: { nthChild: 3, not: { kind: keyword_argument }, any: [ matches: tripwire, matches: call-through ] }
+                - has:
+                    kind: keyword_argument
+                    all:
+                      - has: { field: name, regex: '^(new|side_effect|wraps)$' }
+                      - has: { field: value, any: [ matches: tripwire, matches: call-through ] }
+        - all:
+            - has: { nthChild: 1, kind: string }
+            - any:
+                - all:
+                    - has: { nthChild: 1, regex: '^[rRuU]?["''][\w.]+\.[A-Z][A-Z0-9_]*["'']$' }
+                    - any:
+                        - has: { nthChild: 2, not: { kind: keyword_argument }, matches: config-value }
+                        - has:
+                            kind: keyword_argument
+                            all:
+                              - has: { field: name, regex: '^new$' }
+                              - has: { field: value, matches: config-value }
+                - has: { nthChild: 2, not: { kind: keyword_argument }, matches: tripwire }
+                - has:
+                    kind: keyword_argument
+                    all:
+                      - has: { field: name, regex: '^(new|side_effect)$' }
+                      - has: { field: value, matches: tripwire }
 rule:
   any:
     - kind: import_statement
@@ -31,35 +183,30 @@ rule:
       # A sentinel is a marker object, not a mock.
       not:
         regex: '^from\s+(unittest\.mock|mock)\s+import\s+sentinel$'
-    # pytest-mock: mocker.patch, mocker.patch.object, mocker.Mock, mocker.spy.
+    # pytest-mock: mocker.patch, mocker.patch.object, mocker.Mock.
     - kind: call
       has:
         field: function
         regex: '^mocker\.'
-      # Patching os.environ is setting env vars, like monkeypatch.setenv.
       not:
-        all:
-          - has:
-              field: function
-              regex: '^mocker\.patch\.dict$'
-          - has:
-              field: arguments
-              has:
-                nthChild: 1
-                regex: '^os\.environ$'
+        any:
+          # mocker.spy records calls and runs the real function.
+          - has: { field: function, regex: '^mocker\.spy$' }
+          - all:
+              - has: { field: function, regex: '^mocker\.patch(\.object)?$' }
+              - matches: exempt-replacement
+          # Patching os.environ is setting env vars, like monkeypatch.setenv.
+          - all:
+              - has:
+                  field: function
+                  regex: '^mocker\.patch\.dict$'
+              - has:
+                  field: arguments
+                  has:
+                    nthChild: 1
+                    regex: '^os\.environ$'
     - kind: call
       has:
         field: function
         regex: '^monkeypatch\.setattr$'
-      # Setting an ALL_CAPS module constant to a literal is configuration, like setenv:
-      # setattr(mod, "LIMIT", 3) or setattr("pkg.mod.LIMIT", 3).
-      not:
-        has:
-          field: arguments
-          any:
-            - all:
-                - has: { nthChild: 2, kind: string, regex: '^[rRuU]?["''][A-Z][A-Z0-9_]*["'']$' }
-                - has: { nthChild: 3, matches: literal }
-            - all:
-                - has: { nthChild: 1, kind: string, regex: '^[rRuU]?["''][\w.]+\.[A-Z][A-Z0-9_]*["'']$' }
-                - has: { nthChild: 2, matches: literal }
+      not: { matches: exempt-replacement }
