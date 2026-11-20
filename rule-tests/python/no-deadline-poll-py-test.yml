@@ -5,8 +5,12 @@ valid:
   - "def test_a():\n    while x:\n        def later():\n            time.sleep(1)"
   - "def test_a():\n    for x in xs:\n        f = lambda: time.sleep(1)"
   - "def test_a():\n    while not done():\n        clock.sleep(1)"
+  # An unbounded loop: reported by no-deadline-poll.unbounded-py.
+  - "async def test_a():\n    while not ready():\n        await asyncio.sleep(0.1)"
 invalid:
   - "def test_a():\n    deadline = time.monotonic() + 5\n    while time.monotonic() < deadline:\n        if ready():\n            break\n        time.sleep(0.1)"
   - "async def test_a():\n    for _ in range(50):\n        await asyncio.sleep(0.1)"
   - "async def test_a():\n    async for ev in stream():\n        await asyncio.sleep(0.1)"
-  - "from time import sleep\ndef wait_until(pred):\n    while not pred():\n        sleep(0.05)"
+  - "from time import sleep\ndef wait_until(pred, n):\n    while not pred():\n        n -= 1\n        assert n > 0\n        sleep(0.05)"
+  - "async def test_a():\n    while not ready():\n        if time.monotonic() > deadline:\n            pytest.fail('timed out')\n        await asyncio.sleep(0.1)"
+  - "async def test_a():\n    while True:\n        for x in xs:\n            await asyncio.sleep(0.1)"

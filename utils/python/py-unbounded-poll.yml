@@ -1,0 +1,32 @@
+id: py-unbounded-poll
+language: python
+# A sleep whose nearest loop is a `while` that nothing bounds: no deadline, timeout or counter, and no raise,
+# assert or fail in the loop. `while not ready(): sleep(..)` hangs instead of failing.
+rule:
+  # `async with asyncio.timeout(5):` around the loop, or `@pytest.mark.timeout(5)`, bounds it.
+  not:
+    inside:
+      stopBy: end
+      any:
+        - { kind: with_statement, has: { kind: with_clause, regex: '(?i)timeout|deadline' } }
+        - { kind: decorated_definition, has: { kind: decorator, regex: '(?i)timeout' } }
+  inside:
+    kind: while_statement
+    stopBy:
+      any:
+        - kind: while_statement
+        - kind: for_statement
+        - kind: function_definition
+        - kind: lambda
+        - kind: class_definition
+    not:
+      any:
+        - regex: '(?i)deadline|timeout|monotonic|perf_counter|time\.time\(|\.time\(\)|attempt|retries|tries'
+        - has:
+            stopBy: end
+            any:
+              - kind: raise_statement
+              - kind: assert_statement
+              # A counter: `n += 1`.
+              - kind: augmented_assignment
+              - { kind: call, has: { field: function, regex: '^(pytest\.)?fail$|^self\.fail$' } }

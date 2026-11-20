@@ -88,9 +88,10 @@ def scan(repo):
                 helpers.add(h["metaVariables"]["single"]["NAME"]["text"])
                 continue
             key = (rule, h["file"], h["range"]["start"]["line"] + 1, h["range"]["start"]["column"])
-            if rule == "no-mock-subject":
-                if not mocks_subject(repo, h["file"], h["metaVariables"]["single"]["PATH"]["text"][1:-1]):
-                    continue
+            if rule == "no-mock-subject" and not mocks_subject(
+                    repo, h["file"], h["metaVariables"]["single"]["PATH"]["text"][1:-1]):
+                continue
+            if rule in ("no-mock-subject", "no-stubbed-gate"):
                 subject.add(key[1:])
             hits[key] = h["message"]
             if rule == "no-assertion-free-test":
@@ -103,7 +104,7 @@ def scan(repo):
     for key, names in calls.items():
         if names & helpers:  # the test asserts through a helper
             del hits[key]
-    for loc in subject:  # one hit per call: no-mock-subject says more than no-mock-libs
+    for loc in subject:  # one hit per call: no-mock-subject and no-stubbed-gate say more than no-mock-libs
         hits.pop(("no-mock-libs", *loc), None)
     # Generated code is the generator's to fix, not this repo's.
     generated = {f for f in {k[1] for k in hits} if is_generated(repo / f)}
@@ -302,10 +303,26 @@ def gh_escape(s, prop=False):
 
 def report(lines, fmt):
     # Each line is (file, line, col, text); file is None for allowance problems and advice.
+    if fmt == "text":
+        # A summary, then each rule's message once over its hits; a rule's dotted variants may add messages.
+        by_rule = {}
+        for file, line, _, text in sorted(x for x in lines if x[0]):
+            rule, msg = text.split(": ", 1)
+            by_rule.setdefault(rule, []).append((file, line, msg))
+        rules = sorted(by_rule.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        rows = rules + [("total", [h for _, hs in rules for h in hs])] if rules else []
+        w = max((len(r) for r, _ in rows), default=0)
+        nw = max((len(str(len(hs))) for _, hs in rows), default=0)
+        for rule, hs in rows:
+            print(f"{rule:<{w}}  {len(hs):>{nw}} hit(s) in {len({h[0] for h in hs})} file(s)")
+        for rule, hs in rules:
+            for msg in dict.fromkeys(h[2] for h in hs):
+                print(f"\n{rule}: {msg}")
+                print("\n".join(f"{file}:{line}: {rule}" for file, line, m in hs if m == msg))
+        print("\n" * bool(rules) + "\n".join(text for file, _, _, text in lines if not file))
+        return
     for file, line, col, text in lines:
-        if fmt == "text":
-            print(f"{file}:{line}: {text}" if file else text)
-        elif file:
+        if file:
             print(f"::error file={gh_escape(file, True)},line={line},col={col + 1}::{gh_escape(text)}")
         else:
             print(f"::error file=caltrop.toml::{gh_escape(text)}")
