@@ -40,7 +40,7 @@ MODULE_EXT = re.compile(r"(\.(svelte|vue|[cm]?[jt]sx?))+$")
 # shortcut: common alias roots only (SvelteKit $lib, @/ and ~/ for src); read tsconfig paths if users report misses.
 ALIASES = {"$lib": "src/lib", "@": "src", "~": "src"}
 # Bumped by each release pull request; see docs/versions.md.
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 AST_GREP = "0.44.1"
 INSTALL = f"install ast-grep {AST_GREP}: cargo install ast-grep --version {AST_GREP} --locked"
 USAGE = ("usage: caltrop check [--format text|github] [REPO_DIR]\n"
