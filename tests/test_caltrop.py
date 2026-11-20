@@ -42,10 +42,22 @@ class CaltropTest(Fixture):
         self.write("tests/a.rs", SLEEP)
         r = self.check()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("tests/a.rs:2: no-fixed-sleep:", r.stdout)
+        self.assertIn("tests/a.rs:2: no-fixed-sleep\n", r.stdout)
         self.assertIn("run caltrop baseline to adopt caltrop in this repo", r.stdout)
         self.write("caltrop.toml", "")
         self.assertNotIn("adopt caltrop in this repo", self.check().stdout)
+
+    def test_text_summary_and_message_once(self):
+        self.write("tests/a.rs", SLEEP + SLEEP)
+        self.write("tests/b.rs", SLEEP + "#[ignore]\n#[test]\nfn u() {}\n")
+        out = self.check().stdout.splitlines()
+        self.assertEqual(out[:4], ["no-fixed-sleep   3 hit(s) in 2 file(s)",
+                                   "no-ignored-test  1 hit(s) in 1 file(s)",
+                                   "total            4 hit(s) in 2 file(s)", ""])
+        self.assertEqual(sum(line.startswith("no-fixed-sleep: ") for line in out), 1)
+        i = next(i for i, line in enumerate(out) if line.startswith("no-fixed-sleep: "))
+        self.assertEqual(out[i + 1:i + 4], ["tests/a.rs:2: no-fixed-sleep", "tests/a.rs:5: no-fixed-sleep",
+                                            "tests/b.rs:2: no-fixed-sleep"])
 
     def test_baseline_then_check_passes(self):
         self.write("tests/a b.rs", SLEEP + SLEEP.replace("t()", "u()"))
@@ -63,7 +75,7 @@ class CaltropTest(Fixture):
         self.write("caltrop.toml", '[allow.no-fixed-sleep]\n"tests/a.rs" = 1\n')
         r = self.check()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("tests/a.rs:2: no-fixed-sleep:", r.stdout)
+        self.assertIn("tests/a.rs:2: no-fixed-sleep\n", r.stdout)
         self.assertEqual(r.stdout.splitlines()[-1], "fix these hits; do not raise counts in caltrop.toml")
         self.assertNotIn("baseline", r.stdout)
 
@@ -101,8 +113,8 @@ class CaltropTest(Fixture):
         self.write("src/foo_tests.rs", SLEEP)
         self.write("src/tests.rs", SLEEP)
         r = self.check()
-        self.assertIn("src/foo_tests.rs:2: no-fixed-sleep:", r.stdout)
-        self.assertIn("src/tests.rs:2: no-fixed-sleep:", r.stdout)
+        self.assertIn("src/foo_tests.rs:2: no-fixed-sleep\n", r.stdout)
+        self.assertIn("src/tests.rs:2: no-fixed-sleep\n", r.stdout)
 
     def test_new_rules_report_and_baseline(self):
         self.write("tests/a.rs", (
@@ -113,8 +125,8 @@ class CaltropTest(Fixture):
             "impl Runner for FakeRunner {}\n"
         ))
         r = self.check()
-        for line in ("tests/a.rs:2: no-ignored-test:", "tests/a.rs:4: no-weak-result-assert:",
-                     "tests/a.rs:5: no-silent-skip:", "tests/a.rs:7: no-fake-impls:"):
+        for line in ("tests/a.rs:2: no-ignored-test\n", "tests/a.rs:4: no-weak-result-assert\n",
+                     "tests/a.rs:5: no-silent-skip\n", "tests/a.rs:7: no-fake-impls\n"):
             self.assertIn(line, r.stdout)
         self.assertNotIn("no-silent-skip-tests-dir", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
@@ -134,20 +146,20 @@ class CaltropTest(Fixture):
             self.assertEqual(self.check().returncode, 0, header)
         # Hand-written code that only mentions generation still counts; so does a header below line 5.
         self.write("src/client/gen.ts", "// Tests for generated ids\n" + pragma)
-        self.assertIn("src/client/gen.ts:2: no-coverage-pragma:", self.check().stdout)
+        self.assertIn("src/client/gen.ts:2: no-coverage-pragma\n", self.check().stdout)
         self.write("src/client/gen.ts", "\n" * 5 + "// DO NOT EDIT\n" + pragma)
         self.assertEqual(self.check().returncode, 1)
 
     def test_two_sleeps_one_line(self):
         self.write("tests/a.rs", "fn t() {\n    sleep(a); sleep(b);\n}\n")
-        self.assertEqual(self.check().stdout.count("no-fixed-sleep:"), 2)
+        self.assertEqual(self.check().stdout.count(": no-fixed-sleep\n"), 2)
 
     def test_nextest_retry_lines_follow_tables(self):
         self.write(".config/nextest.toml",
                    '[profile.default]\nretries = 1\n\n[profile.ci]\nretries = 2\n\n'
                    '[[profile.default.overrides]]\nfilter = "x"\nretries = 0\n')
         r = self.check()
-        self.assertEqual(r.stdout.count("no-test-retries:"), 2)
+        self.assertEqual(r.stdout.count(": no-test-retries\n"), 2)
         self.assertIn(".config/nextest.toml:2:", r.stdout)
         self.assertIn(".config/nextest.toml:5:", r.stdout)
 
@@ -164,7 +176,7 @@ class CaltropTest(Fixture):
     def test_tests_dir_and_mod_dedupe(self):
         self.write("tests/a.rs", "#[cfg(test)]\nmod m {\n    fn t() {\n        std::thread::sleep(d);\n    }\n}\n")
         r = self.check()
-        self.assertEqual(r.stdout.count("no-fixed-sleep:"), 1, r.stdout)
+        self.assertEqual(r.stdout.count(": no-fixed-sleep\n"), 1, r.stdout)
         self.assertNotIn("-tests-dir", r.stdout)
 
     def test_gitignored_dir_skipped(self):
@@ -178,7 +190,7 @@ class CaltropTest(Fixture):
                    'filter = "test(x)"\nretries = { backoff = "fixed", count = 1 }\n')
         r = self.check()
         self.assertEqual(r.stdout.count(".config/nextest.toml:"), 2, r.stdout)
-        self.assertEqual(r.stdout.count("no-test-retries:"), 2)
+        self.assertEqual(r.stdout.count(": no-test-retries\n"), 2)
         self.assertIn(".config/nextest.toml:2:", r.stdout)
         self.assertIn(".config/nextest.toml:6:", r.stdout)
 
@@ -190,10 +202,10 @@ class CaltropTest(Fixture):
                    '[tool.pytest.ini_options]\naddopts = [\n  "-q",\n  "--reruns",\n  "3",\n]\n')
         self.write("tox.ini", "[pytest]\naddopts =\n    -q\n    --reruns\n    2\n")
         r = self.check()
-        self.assertIn("pyproject.toml:2: no-test-retries:", r.stdout)
-        self.assertIn("pytest.ini:2: no-test-retries:", r.stdout)
-        self.assertIn("backend/pyproject.toml:4: no-test-retries:", r.stdout)
-        self.assertIn("tox.ini:4: no-test-retries:", r.stdout)
+        self.assertIn("pyproject.toml:2: no-test-retries\n", r.stdout)
+        self.assertIn("pytest.ini:2: no-test-retries\n", r.stdout)
+        self.assertIn("backend/pyproject.toml:4: no-test-retries\n", r.stdout)
+        self.assertIn("tox.ini:4: no-test-retries\n", r.stdout)
         self.assertNotIn("setup.cfg", r.stdout)
 
     def test_pytest_reruns_not_in_comments_or_other_tables(self):
@@ -210,9 +222,9 @@ class CaltropTest(Fixture):
         self.write("tox.ini", "[pytest]\naddopts = -m 'not slow' --strict-markers\n")
         self.write("app/pyproject.toml", '[tool.pytest.ini_options]\naddopts = "-kfoo"\n')
         r = self.check()
-        self.assertEqual(r.stdout.count("no-test-filter:"), 4, r.stdout)
+        self.assertEqual(r.stdout.count(": no-test-filter\n"), 4, r.stdout)
         for line in ("pyproject.toml:7:", "pytest.ini:3:", "setup.cfg:2:", "app/pyproject.toml:2:"):
-            self.assertIn(f"\n{line} no-test-filter:", "\n" + r.stdout)
+            self.assertIn(f"\n{line} no-test-filter\n", "\n" + r.stdout)
         self.assertNotIn("tox.ini", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
         self.assertIn("[allow.no-test-filter]", (self.repo / "caltrop.toml").read_text())
@@ -224,7 +236,7 @@ class CaltropTest(Fixture):
         self.write("playwright.config.ts", "export default defineConfig({\n  testIgnore: '**/slow/**',\n});\n")
         r = self.check()
         for line in ("package.json:3:", "vitest.config.ts:2:", "playwright.config.ts:2:"):
-            self.assertIn(f"{line} no-test-filter:", r.stdout)
+            self.assertIn(f"{line} no-test-filter\n", r.stdout)
         self.assertNotIn("-json", r.stdout)
 
     def test_assertion_free_test(self):
@@ -243,7 +255,7 @@ class CaltropTest(Fixture):
                                      "it('uses a helper', () => { refused(f()); });\n"
                                      "it('checks nothing', () => { f(); });\n"))
         r = self.check()
-        hits = [line.split(": ")[0] for line in r.stdout.splitlines() if ": no-assertion-free-test:" in line]
+        hits = [line.split(": ")[0] for line in r.stdout.splitlines() if line.endswith(": no-assertion-free-test")]
         self.assertEqual(hits, ["src/a.test.ts:3", "tests/test_a.py:10", "tests/test_a.py:13"], r.stdout)
         self.assertNotIn("assert-helper", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
@@ -262,14 +274,15 @@ class CaltropTest(Fixture):
         self.write("src/e.test.jsx", "it.skip('x', () => { render(<App />); });\n")
         self.write("src/f.test.ts", "await waitFor(() => {});\n")
         r = self.check()
-        self.assertIn("tests/test_a.py:4: no-fixed-sleep:", r.stdout)
-        self.assertIn("src/A.svelte:2: no-test-swap:", r.stdout)
-        self.assertIn("src/B.svelte:2: no-test-swap:", r.stdout)
-        self.assertIn("src/c.test.ts:1: no-ignored-test:", r.stdout)
-        self.assertIn("src/C.svelte:2: no-test-swap:", r.stdout)
-        self.assertIn("src/d.test.tsx:1: no-ignored-test:", r.stdout)
-        self.assertIn("src/e.test.jsx:1: no-ignored-test:", r.stdout)
-        self.assertIn("src/f.test.ts:1: no-fixed-sleep: Wait for the condition", r.stdout)
+        self.assertIn("tests/test_a.py:4: no-fixed-sleep\n", r.stdout)
+        self.assertIn("src/A.svelte:2: no-test-swap\n", r.stdout)
+        self.assertIn("src/B.svelte:2: no-test-swap\n", r.stdout)
+        self.assertIn("src/c.test.ts:1: no-ignored-test\n", r.stdout)
+        self.assertIn("src/C.svelte:2: no-test-swap\n", r.stdout)
+        self.assertIn("src/d.test.tsx:1: no-ignored-test\n", r.stdout)
+        self.assertIn("src/e.test.jsx:1: no-ignored-test\n", r.stdout)
+        self.assertIn("no-fixed-sleep: Wait for the condition: put the assertion in the `waitFor` callback, "
+                      "or use `findBy*`.\nsrc/f.test.ts:1: no-fixed-sleep\n", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
         toml = (self.repo / "caltrop.toml").read_text()
         self.assertNotIn("-py", toml)
@@ -351,7 +364,7 @@ class CaltropTest(Fixture):
         for p in hit + miss:
             self.write(p, text)
         out = self.check().stdout
-        self.assertEqual({line.split(":")[0] for line in out.splitlines() if f": {rule}:" in line}, set(hit), out)
+        self.assertEqual({line.split(":")[0] for line in out.splitlines() if line.endswith(f": {rule}")}, set(hit), out)
 
     def test_rust_test_code_files(self):
         self.assert_hits("no-fixed-sleep", SLEEP,
@@ -402,7 +415,7 @@ class CaltropTest(Fixture):
         self.write("src/A.svelte", '<script lang="ts">\n/* v8 ignore next */\nconst a = 1;\n</script>\n')
         self.write("src/B.svelte", "<script>\n// c8 ignore next\nlet a = 1;\n</script>\n")
         out = self.check().stdout
-        self.assertEqual({line.split(":")[0] for line in out.splitlines() if ": no-coverage-pragma:" in line},
+        self.assertEqual({line.split(":")[0] for line in out.splitlines() if line.endswith(": no-coverage-pragma")},
                          {"src/a.ts", "src/b.js", "src/c.tsx", "src/a.test.ts", "src/A.svelte", "src/B.svelte"}, out)
 
     def test_malformed_ast_grep_output(self):
@@ -418,7 +431,7 @@ class CaltropTest(Fixture):
     def test_github_format_hit(self):
         self.write("tests/a%,b:c.rs", SLEEP)
         r = self.check()
-        self.assertIn("tests/a%,b:c.rs:2: no-fixed-sleep: ", r.stdout)
+        self.assertIn("tests/a%,b:c.rs:2: no-fixed-sleep\n", r.stdout)
         r = run("check", "--format", "github", str(self.repo))
         self.assertEqual(r.returncode, 1)
         first, last = r.stdout.splitlines()
@@ -490,10 +503,10 @@ class CaltropTest(Fixture):
             "vi.mock('./api');\n"
             "it('x', () => { expect(addToast('a')).toBe('a'); });\n"))
         r = self.check()
-        self.assertIn("src/lib/toast.test.ts:1: no-mock-subject:", r.stdout)
-        self.assertNotIn("src/lib/toast.test.ts:1: no-mock-libs:", r.stdout)
-        self.assertIn("src/lib/toast.test.ts:2: no-mock-libs:", r.stdout)
-        self.assertNotIn("src/lib/toast.test.ts:2: no-mock-subject:", r.stdout)
+        self.assertIn("src/lib/toast.test.ts:1: no-mock-subject\n", r.stdout)
+        self.assertNotIn("src/lib/toast.test.ts:1: no-mock-libs\n", r.stdout)
+        self.assertIn("src/lib/toast.test.ts:2: no-mock-libs\n", r.stdout)
+        self.assertNotIn("src/lib/toast.test.ts:2: no-mock-subject\n", r.stdout)
 
     def test_stubbed_gate_replaces_mock_libs_hit(self):
         self.write("src/page.test.ts", (
@@ -510,8 +523,10 @@ class CaltropTest(Fixture):
         self.write("tests/test_a.py", "def test_a():\n    with pytest.raises(ValueError):\n        x = f()\n        g(x)\n")
         self.write("src/a.test.ts", "it('x', () => { try { f(); } catch (e) { expect(e.code).toBe('x'); } });\n")
         r = self.check()
-        self.assertIn("tests/test_a.py:2: no-weak-result-assert: Put only the call", r.stdout)
-        self.assertIn("src/a.test.ts:1: no-weak-result-assert: The catch only runs", r.stdout)
+        # One group for the id, each variant's message over its own hits.
+        self.assertRegex(r.stdout, r"\nno-weak-result-assert: The catch only runs[^\n]*\nsrc/a.test.ts:1: no-weak-result-assert\n")
+        self.assertRegex(r.stdout, r"\nno-weak-result-assert: Put only the call[^\n]*\ntests/test_a.py:2: no-weak-result-assert\n")
+        self.assertIn("no-weak-result-assert  2 hit(s) in 2 file(s)\n", r.stdout)
         self.assertEqual(run("baseline", str(self.repo)).returncode, 0)
         toml = (self.repo / "caltrop.toml").read_text()
         self.assertIn("[allow.no-weak-result-assert]", toml)

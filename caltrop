@@ -303,10 +303,26 @@ def gh_escape(s, prop=False):
 
 def report(lines, fmt):
     # Each line is (file, line, col, text); file is None for allowance problems and advice.
+    if fmt == "text":
+        # A summary, then each rule's message once over its hits; a rule's dotted variants may add messages.
+        by_rule = {}
+        for file, line, _, text in sorted(x for x in lines if x[0]):
+            rule, msg = text.split(": ", 1)
+            by_rule.setdefault(rule, []).append((file, line, msg))
+        rules = sorted(by_rule.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        rows = rules + [("total", [h for _, hs in rules for h in hs])] if rules else []
+        w = max((len(r) for r, _ in rows), default=0)
+        nw = max((len(str(len(hs))) for _, hs in rows), default=0)
+        for rule, hs in rows:
+            print(f"{rule:<{w}}  {len(hs):>{nw}} hit(s) in {len({h[0] for h in hs})} file(s)")
+        for rule, hs in rules:
+            for msg in dict.fromkeys(h[2] for h in hs):
+                print(f"\n{rule}: {msg}")
+                print("\n".join(f"{file}:{line}: {rule}" for file, line, m in hs if m == msg))
+        print("\n" * bool(rules) + "\n".join(text for file, _, _, text in lines if not file))
+        return
     for file, line, col, text in lines:
-        if fmt == "text":
-            print(f"{file}:{line}: {text}" if file else text)
-        elif file:
+        if file:
             print(f"::error file={gh_escape(file, True)},line={line},col={col + 1}::{gh_escape(text)}")
         else:
             print(f"::error file=caltrop.toml::{gh_escape(text)}")
